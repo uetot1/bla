@@ -1,0 +1,11 @@
+{
+  "inp_path": "./validation/frames",
+  "labels_path": "./validation/labels",
+  "prefix": "Parkscene_",
+  "fps": 24,
+  "no_frames": 100,
+  "gop": 32,
+  "anchor_path": "./anchors/ParkScene.json",
+  "img_size": 640,
+  "map_metric": "map50_95"
+}

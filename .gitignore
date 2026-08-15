@@ -1,0 +1,7 @@
+__pycache__/
+*.py[cod]
+data/
+outputs/
+checkpoints/dcvc_rt/*.pth.tar
+checkpoints/base_task/
+out/

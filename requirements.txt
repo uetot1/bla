@@ -1,0 +1,8 @@
+-r dcvc_rt/requirements.txt
+ipython
+opencv-python
+pandas
+psutil
+PyYAML
+requests
+seaborn

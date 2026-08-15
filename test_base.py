@@ -19,6 +19,7 @@ from dcvc_rt.src.utils.common import get_state_dict
 from dcvc_rt.src.utils.stream_helper import SPSHelper, write_ip, write_sps
 from dcvc_rt.src.utils.transforms import rgb2ycbcr, ycbcr2rgb
 from machine_metrics import bd_rate_map, load_points
+from svc_machine.feature_extractor import install_cloned_frontend
 #=======================================================================================================================
 def torch2img(x: torch.Tensor) -> Image.Image:
     return ToPILImage()(x.clamp_(0, 1).squeeze())
@@ -181,8 +182,8 @@ def encode_the_base_layer(model_path_i, model_path_p, qps, no_frames, inp_path, 
                           save_frames=True):
     if no_frames <= 0 or gop <= 0 or fps <= 0:
         raise ValueError('no_frames, gop and fps must be positive')
-    if len(qps) < 4 or len(set(qps)) != len(qps) or any(qp < 0 or qp >= DMC.get_qp_num() for qp in qps):
-        raise ValueError('Use at least four unique DCVC-RT QPs in the range 0..63')
+    if tuple(qps) != (0, 21, 42, 63):
+        raise ValueError('BD-rate-mAP evaluation requires QPs 0 21 42 63 in this order')
 
     def paths_for_points(paths, name):
         if len(paths) == 1:
@@ -196,12 +197,20 @@ def encode_the_base_layer(model_path_i, model_path_p, qps, no_frames, inp_path, 
     device = select_device('', batch_size=1)
     detector = DetectMultiBackend(
         weights=weights, device=device, dnn=False, fp16=False, fuse=False)
+    original_frontend = {
+        key: value.detach().clone()
+        for key, value in detector.model.model[:5].state_dict().items()
+    }
     feature_extractor = AutoShape(detector, verbose=False)
     feature_extractor.conf = 0.001
     feature_extractor.iou = 0.6
 
     points = []
     for qp, image_path, video_path in zip(qps, image_paths, video_paths):
+        checkpoint = torch.load(video_path, map_location='cpu', weights_only=True)
+        cloned_frontend = checkpoint.get('cloned_frontend_state_dict') \
+            if isinstance(checkpoint, dict) else None
+        install_cloned_frontend(detector, cloned_frontend or original_frontend)
         net = Pframe(image_path, video_path, qp, force_zero_thres, reset_interval).cuda()
         net.feature_extractor = feature_extractor
         net.eval()
@@ -210,9 +219,14 @@ def encode_the_base_layer(model_path_i, model_path_p, qps, no_frames, inp_path, 
         print(f'Generating and evaluating base frames at QP {qp}...')
         point = net.test(no_frames, inp_path, labels_path, prefix, qp_out_path, gop, fps,
                          img_size, save_frames)
+        point['trained_cloned_frontend'] = cloned_frontend is not None
         points.append(point)
         print(f"QP {qp}: {point['bitrate_kbps']:.3f} kbps, "
               f"mAP@0.5={point['map50']:.6f}, mAP@0.5:0.95={point['map50_95']:.6f}")
+
+    clone_flags = {point['trained_cloned_frontend'] for point in points}
+    if len(clone_flags) != 1:
+        raise ValueError('All four evaluation points must use the same cloned front-end policy')
 
     result = {'metric': map_metric, 'points': points}
     result['bd_rate_map_percent'] = bd_rate_map(load_points(anchor_path), points, map_metric)

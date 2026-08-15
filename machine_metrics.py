@@ -13,9 +13,15 @@ def bd_rate_map(anchor_points, test_points, map_key='map50_95'):
     def curve(points):
         rates = [float(point['bitrate_kbps']) for point in points]
         maps = [float(point[map_key]) for point in points]
-        if (len(points) < 4 or any(rate <= 0 for rate in rates) or len(set(maps)) < 4 or
+        if (len(points) != 4 or any(rate <= 0 for rate in rates) or
+                len(set(rates)) != 4 or len(set(maps)) != 4 or
+                any(not 0 <= value <= 1 for value in maps) or
                 not all(math.isfinite(value) for value in rates + maps)):
-            raise ValueError('BD-rate-mAP requires at least four positive-rate points with unique mAP values')
+            raise ValueError(
+                'BD-rate-mAP requires four unique positive rates and four unique finite mAP values in 0..1')
+        ordered = sorted(zip(rates, maps))
+        if not all(left[1] < right[1] for left, right in zip(ordered, ordered[1:])):
+            raise ValueError('BD-rate-mAP points must form a strictly increasing bitrate-mAP curve')
         return zip(*sorted((quality, math.log(rate)) for quality, rate in zip(maps, rates)))
 
     def fit_cubic(xs, ys):

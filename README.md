@@ -13,15 +13,26 @@ The enhancement layer and the PSNR, SSIM, MS-SSIM and reconstruction-MSE evaluat
 
 - `DMCI` with `cvpr2025_image.pth.tar` encodes each GOP's I-frame.
 - `DMC` with `cvpr2025_video.pth.tar` encodes the following P-frames.
-- `yolov5s.pt` evaluates the reconstructed frames for the original paper's machine task.
+- `yolov5s.pt` supplies the frozen teacher and initializes the trainable cloned front-end (layers `0..4`). Its back-end (layers `5..23`) stays frozen for detection evaluation.
 
 The official DCVC-RT source is vendored under `dcvc_rt/` and pinned in `dcvc_rt/UPSTREAM.md` with its license and notice.
 
-The repository is intentionally minimal: root code contains only base-layer training/evaluation and BD-rate-mAP calculation; `dcvc_rt/src/` contains the active codec and build sources; `models/` and `utils/` contain only the required YOLOv5 code. Legacy CANF/PWC/SDC codecs, enhancement code, segmentation, export and logging utilities have been removed.
+The active project is split by responsibility:
+
+```text
+svc_machine/          SVC feature supervision and rate-task loss
+dcvc_rt/              active DMCI/DMC codec implementation
+train_base.py         five-frame SVC training schedule and orchestration
+test_base.py          base-layer coding and BD-rate-mAP evaluation
+legacy_svc_base/      original CANF/PWC/SDC base codec, reference only
+models/ + utils/      required frozen YOLOv5 code
+```
+
+The enhancement layer, human-viewing path and unrelated YOLO utilities remain removed. The original SVC base-codec source is preserved under `legacy_svc_base/` for traceability but is not imported at runtime.
 
 ## Current training pipeline
 
-![DCVC-RT machine base-layer training pipeline](training_pipeline.png)
+![DCVC-RT machine base-layer training pipeline](training_pipeline.svg)
 
 ## Installation and checkpoints
 
@@ -67,11 +78,10 @@ lambda   2     4     8    16
 For the five-frame group, the DCVC-RT hierarchical offsets are `[0,8,0,4,0]`. Frame 0 initializes the DPB through frozen DMCI; only frames 1 through 4 contribute to the loss:
 
 ```text
-L = mean_t(rate_P(t) + lambda_task(qp) *
-    (MSE(F17, Fhat17) + MSE(F20, Fhat20) + MSE(F23, Fhat23)) / 3)
+L = mean_t(rate_P(t) + lambda_task(qp) * MSE(F4(x_t), Fclone4(xhat_t)))
 ```
 
-There is no I-frame loss, pixel MSE, detection loss, PSNR, MS-SSIM, enhancement-layer loss, or label requirement during training. Only `DMC` is optimized; DMCI and every YOLOv5-small parameter remain frozen. The defaults retain the paper protocol: random `256x256` crop, five consecutive frames, batch size 4, Adam at `1e-6`, and 10 epochs.
+There is no I-frame loss, pixel MSE, detection loss, PSNR, MS-SSIM, enhancement-layer loss, or label requirement during training. Adam jointly optimizes `DMC` and cloned YOLO layers `0..4`; DMCI, the original teacher, and YOLO back-end layers `5..23` remain frozen. The defaults retain the SVC protocol: random `256x256` crop, five consecutive frames, global batch size 4, Adam at `1e-6`, and 10 epochs. Gradients are clipped to norm `1.0` by default.
 
 First check the interpolation and dataset:
 
@@ -89,13 +99,38 @@ python train_base.py \
   --validation_interval 1
 ```
 
+For DDP, keep `--batch_size 4` as the global batch size and choose a process count that divides four. Actual-bitstream validation is deliberately run separately because it is single-GPU:
+
+```bash
+torchrun --standalone --nproc_per_node=4 train_base.py \
+  --dataset /path/to/vimeo_septuplet
+
+python test_base.py --qps 0 21 42 63 ...
+```
+
 After each validation, the same checkpoint is encoded at QPs `0 21 42 63`; actual bitrate and frozen-YOLO mAP are used to calculate BD-rate-mAP. The lowest validation BD-rate is selected automatically:
 
 ```text
 checkpoints/base_task/video_variable_rate_last.pth.tar
 checkpoints/base_task/video_variable_rate_best.pth.tar
+checkpoints/base_task/variable_rate_training_history.json
+checkpoints/base_task/variable_rate_training_curves.png
 checkpoints/base_task/variable_rate_validation_history.json
 ```
+
+`variable_rate_training_curves.png` contains separate Total Loss, BPP and Feature MSE plots. The JSON and plot are refreshed after every completed epoch.
+
+If training is interrupted, continue from the next epoch stored in the default `last` checkpoint. `--epochs` is the final total, not the number of additional epochs:
+
+```bash
+python train_base.py \
+  --dataset /path/to/vimeo_septuplet \
+  --epochs 10 \
+  --validation_config ./validation_config.example.json \
+  --resume
+```
+
+Use `--resume /path/to/checkpoint.pth.tar` for an explicit checkpoint. The checkpoint restores DMC, cloned front-end, Adam, Python/Torch/CUDA RNG state, histories, and the next epoch. DDP resume requires the same process count. An interruption inside an epoch repeats that incomplete epoch because checkpoints are committed only after complete epochs.
 
 Omit `--validation_config` only when periodic selection is not required; in that case only the `last` checkpoint is available. Validation does not save reconstructed PNGs.
 
@@ -109,7 +144,7 @@ python train_base.py \
   --validation_config ./validation_config.example.json
 ```
 
-Its outputs are named `video_fixed_qp42_last.pth.tar`, `video_fixed_qp42_best.pth.tar`, and `fixed_qp42_validation_history.json`. Compare its QP-42 point with the variable-rate model's QP-42 point in the two validation histories.
+Its outputs use the same naming pattern with the `fixed_qp42` tag. Compare its QP-42 point with the variable-rate model's QP-42 point in the two validation histories.
 
 ## VTM anchor input
 
@@ -147,8 +182,8 @@ python test_base.py \
   --anchor_path ./anchors/ParkScene.json
 ```
 
-The single variable-rate checkpoint is reused at all four QPs. Reconstructed PNG files and the actual DCVC-RT `.bin` stream are written under `out/ParkScene/qp_<QP>/`. Bitrate is measured from that stream's file size. The proposal curve and `bd_rate_map_percent` are written to `machine_metrics.json`; a negative BD-rate-mAP means bitrate saving over the anchor at equal mAP.
+The single variable-rate checkpoint, including its trained cloned front-end, is reused at all four QPs. Its cloned layers `0..4` replace the detector's original front-end while frozen layers `5..23` produce detections. Reconstructed PNG files and the actual DCVC-RT `.bin` stream are written under `out/ParkScene/qp_<QP>/`. Bitrate is measured from that stream's file size. The evaluator requires exactly QPs `0,21,42,63`, four finite positive-rate Pareto points, a common front-end policy, and overlapping anchor/proposal mAP ranges. The proposal curve and `bd_rate_map_percent` are written to `machine_metrics.json`; a negative value means bitrate saving over the anchor at equal mAP.
 
 Use `--map_metric map50` when the anchor contains `map50`; the default is `map50_95`, corresponding to the average over IoU thresholds `0.50:0.05:0.95` defined by the CTC document.
 
-This follows the paper's base-layer loss and schedule while using DCVC-RT as requested. Because the codec backbone differs from the paper's original codec, its published numerical results are not expected to match exactly.
+This is not identical to the other DCVC-RT repository: only its codec and reliability mechanisms are reused. The five-frame SVC feature objective, layer-4 teacher/clone supervision, Adam `1e-6`, 10-epoch schedule, and lambda range `2..16` remain project-specific. Because the codec backbone differs from the paper's original codec, its published numerical results are not expected to match exactly.

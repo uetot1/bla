@@ -1,0 +1,182 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1220" viewBox="0 0 1800 1220" role="img" aria-labelledby="title desc">
+  <title id="title">Current DCVC-RT machine base-layer training pipeline</title>
+  <desc id="desc">Five-frame Vimeo training with frozen DMCI and teacher, trainable DMC and cloned YOLO layers zero through four, random QP, feature-rate loss, DDP, resumable checkpoints, plots, and strict BD-rate-mAP validation.</desc>
+  <defs>
+    <linearGradient id="header" x1="0" x2="1">
+      <stop offset="0" stop-color="#12324a"/><stop offset="1" stop-color="#176b87"/>
+    </linearGradient>
+    <linearGradient id="train" x1="0" x2="1">
+      <stop offset="0" stop-color="#d9ebff"/><stop offset="1" stop-color="#b7d5ff"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#183042" flood-opacity=".14"/>
+    </filter>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10Z" fill="#17242d"/>
+    </marker>
+    <marker id="gradArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10Z" fill="#d9382c"/>
+    </marker>
+    <style>
+      .bg{fill:#f7f9fb}.panel{fill:#fff;stroke:#b7c2ca;stroke-width:2}.card{fill:#fff;stroke:#263844;stroke-width:2;filter:url(#shadow)}
+      .frozen{fill:#fff3df;stroke:#d87916}.train{fill:url(#train);stroke:#235aa6;stroke-width:3}.green{fill:#edf8e8;stroke:#568641}.persist{fill:#f1ecff;stroke:#7558b4}.eval{fill:#edf6ff;stroke:#2a6da8}
+      .excluded{fill:#fafafa;stroke:#7f8990;stroke-width:2;stroke-dasharray:8 6}.line{fill:none;stroke:#17242d;stroke-width:3;marker-end:url(#arrow)}
+      .thin{fill:none;stroke:#17242d;stroke-width:2.4;marker-end:url(#arrow)}.grad{fill:none;stroke:#d9382c;stroke-width:3;stroke-dasharray:8 7;marker-end:url(#gradArrow)}
+      .loop{fill:none;stroke:#7558b4;stroke-width:3;stroke-dasharray:9 7;marker-end:url(#arrow)}
+      text{font-family:Arial,"DejaVu Sans",sans-serif;fill:#16232c}.h1{font-size:34px;font-weight:700;fill:white}.h2{font-size:22px;font-weight:700;fill:#14384d}
+      .label{font-size:19px;font-weight:700}.body{font-size:16px}.small{font-size:14px}.red{fill:#bd2d25;font-weight:700}.blue{fill:#235aa6;font-weight:700}.muted{fill:#53636e}
+    </style>
+  </defs>
+
+  <rect class="bg" width="1800" height="1220"/>
+  <rect fill="url(#header)" width="1800" height="86"/>
+  <text class="h1" x="900" y="54" text-anchor="middle">CURRENT TRAINING PIPELINE — DCVC-RT MACHINE BASE LAYER</text>
+
+  <!-- Rate control -->
+  <rect class="panel" x="40" y="110" width="1720" height="125" rx="18"/>
+  <text class="h2" x="65" y="143">PER-BATCH RATE CONTROL</text>
+  <rect class="card green" x="65" y="160" width="280" height="52" rx="10"/>
+  <text class="label" x="205" y="192" text-anchor="middle">Random base QP ∈ [0, 63]</text>
+  <path class="line" d="M345 186H430"/>
+  <rect class="card green" x="430" y="153" width="380" height="66" rx="10"/>
+  <text class="label" x="620" y="181" text-anchor="middle">λtask = 2 × 8^(QP / 63)</text>
+  <text class="small" x="620" y="204" text-anchor="middle">log-space: 2 → 4 → 8 → 16</text>
+  <path class="line" d="M810 186H895"/>
+  <rect class="card green" x="895" y="153" width="390" height="66" rx="10"/>
+  <text class="label" x="1090" y="181" text-anchor="middle">5-frame QP offsets</text>
+  <text class="body" x="1090" y="205" text-anchor="middle">[0, 8, 0, 4, 0]</text>
+  <rect class="card green" x="1330" y="153" width="390" height="66" rx="10"/>
+  <text class="label" x="1525" y="181" text-anchor="middle">Vimeo-90K Septuplet</text>
+  <text class="body" x="1525" y="205" text-anchor="middle">5 consecutive frames • random 256×256 crop</text>
+
+  <!-- Main training -->
+  <rect class="panel" x="40" y="260" width="1435" height="625" rx="18"/>
+  <text class="h2" x="65" y="298">FORWARD + BACKPROP (4 P-FRAMES, SEQUENCE-LEVEL)</text>
+
+  <!-- I frame branch -->
+  <rect class="card" x="70" y="330" width="155" height="66" rx="10"/>
+  <text class="label" x="147" y="358" text-anchor="middle">Frame 0</text>
+  <text class="small" x="147" y="381" text-anchor="middle">RGB → YCbCr</text>
+  <path class="line" d="M225 363H285"/>
+  <rect class="card frozen" x="285" y="322" width="260" height="82" rx="10"/>
+  <text class="label" x="415" y="353" text-anchor="middle">DMCI reconstruction</text>
+  <text class="body red" x="415" y="380" text-anchor="middle">FROZEN • no_grad</text>
+  <path class="line" d="M545 363H605"/>
+  <rect class="card" x="605" y="330" width="235" height="66" rx="10"/>
+  <text class="label" x="722" y="358" text-anchor="middle">Initial DPB</text>
+  <text class="small" x="722" y="381" text-anchor="middle">reference frame</text>
+  <text class="body muted" x="885" y="366">No I-frame loss • no backward</text>
+
+  <!-- P frame codec path -->
+  <rect class="card" x="70" y="470" width="195" height="80" rx="10"/>
+  <text class="label" x="167" y="501" text-anchor="middle">P-frames t=1…4</text>
+  <text class="small" x="167" y="527" text-anchor="middle">RGB → YCbCr 4:4:4</text>
+  <path class="line" d="M265 510H350"/>
+  <path class="thin" d="M722 396V435H490V463"/>
+  <rect class="card train" x="350" y="463" width="300" height="95" rx="12"/>
+  <text class="label" x="500" y="496" text-anchor="middle">DMC.forward_train</text>
+  <text class="body blue" x="500" y="524" text-anchor="middle">TRAINABLE</text>
+  <text class="small" x="500" y="546" text-anchor="middle">current QP + temporal DPB</text>
+  <path class="line" d="M650 495H745"/>
+  <rect class="card" x="745" y="445" width="260" height="72" rx="10"/>
+  <text class="label" x="875" y="475" text-anchor="middle">Estimated BPP</text>
+  <text class="body" x="875" y="500" text-anchor="middle">Rt = Ry + Rz</text>
+  <path class="line" d="M650 535H745"/>
+  <rect class="card" x="745" y="535" width="260" height="72" rx="10"/>
+  <text class="label" x="875" y="566" text-anchor="middle">Reconstructed frame</text>
+  <text class="body" x="875" y="590" text-anchor="middle">YCbCr → RGB, x̂t</text>
+  <path class="line" d="M1005 571H1080"/>
+  <rect class="card" x="1080" y="535" width="210" height="72" rx="10"/>
+  <text class="label" x="1185" y="565" text-anchor="middle">Update DPB</text>
+  <text class="small" x="1185" y="589" text-anchor="middle">reference for t+1</text>
+  <path class="thin" d="M1185 535V430H500V463"/>
+
+  <!-- Feature supervision -->
+  <path class="thin" d="M167 550V645"/>
+  <rect class="card frozen" x="65" y="645" width="265" height="88" rx="10"/>
+  <text class="label" x="197" y="676" text-anchor="middle">Original YOLOv5 front end</text>
+  <text class="body red" x="197" y="704" text-anchor="middle">FROZEN • no_grad</text>
+  <path class="line" d="M330 689H405"/>
+  <rect class="card" x="405" y="653" width="210" height="72" rx="10"/>
+  <text class="label" x="510" y="682" text-anchor="middle">Teacher features</text>
+  <text class="body" x="510" y="707" text-anchor="middle">F4(x<tspan baseline-shift="sub">t</tspan>) • layer 4 only</text>
+
+  <path class="thin" d="M875 607V645"/>
+  <rect class="card train" x="745" y="645" width="300" height="88" rx="10"/>
+  <text class="label" x="895" y="676" text-anchor="middle">Cloned YOLOv5 front end</text>
+  <text class="small blue" x="895" y="701" text-anchor="middle">layers 0..4 • TRAINABLE</text>
+  <path class="line" d="M1045 689H1120"/>
+  <rect class="card" x="1120" y="653" width="210" height="72" rx="10"/>
+  <text class="label" x="1225" y="682" text-anchor="middle">Decoded features</text>
+  <text class="body" x="1225" y="707" text-anchor="middle">F̂4(x̂<tspan baseline-shift="sub">t</tspan>)</text>
+
+  <!-- Objective -->
+  <path class="thin" d="M510 725V760H650"/>
+  <path class="thin" d="M1225 725V760H985"/>
+  <path class="thin" d="M875 517V760H985"/>
+  <rect class="card train" x="555" y="760" width="535" height="95" rx="12"/>
+  <text class="label" x="822" y="792" text-anchor="middle">SVC machine-oriented objective</text>
+  <text class="body" x="822" y="820" text-anchor="middle">Dfeature(t) = MSE(F4(x<tspan baseline-shift="sub">t</tspan>), F̂4(x̂<tspan baseline-shift="sub">t</tspan>))</text>
+  <text class="body" x="822" y="846" text-anchor="middle">L = ¼ Σt=1…4 [ Rt + λtask · Dfeature(t) ]</text>
+  <path class="grad" d="M555 808H500V558"/>
+  <text class="body red" x="1120" y="812">BACKPROP: DMC + cloned layers 0..4</text>
+  <text class="small muted" x="1120" y="840">Adam 1e-6 • clip norm 1.0 • DDP</text>
+
+  <!-- Exclusions -->
+  <rect class="excluded" x="1505" y="260" width="255" height="625" rx="18"/>
+  <text class="label red" x="1632" y="305" text-anchor="middle">REMOVED / NOT USED</text>
+  <line x1="1530" y1="325" x2="1735" y2="325" stroke="#9ba4aa"/>
+  <text class="body" x="1632" y="365" text-anchor="middle">Enhancement layer</text>
+  <text class="body" x="1632" y="410" text-anchor="middle">Pixel MSE</text>
+  <text class="body" x="1632" y="455" text-anchor="middle">PSNR loss</text>
+  <text class="body" x="1632" y="500" text-anchor="middle">MS-SSIM loss</text>
+  <text class="body" x="1632" y="545" text-anchor="middle">Detection loss</text>
+  <text class="body" x="1632" y="590" text-anchor="middle">Labels during training</text>
+  <text class="body" x="1632" y="635" text-anchor="middle">Real bitstream in loss</text>
+  <line x1="1530" y1="675" x2="1735" y2="675" stroke="#9ba4aa"/>
+  <text class="small muted" x="1632" y="712" text-anchor="middle">BD-rate-mAP is validation</text>
+  <text class="small muted" x="1632" y="735" text-anchor="middle">metric, not training loss</text>
+
+  <!-- End of epoch outputs and resume -->
+  <rect class="panel" x="40" y="910" width="940" height="270" rx="18"/>
+  <text class="h2" x="65" y="948">AFTER EACH COMPLETED EPOCH</text>
+  <rect class="card persist" x="65" y="975" width="310" height="118" rx="10"/>
+  <text class="label" x="220" y="1006" text-anchor="middle">Full “last” checkpoint</text>
+  <text class="small" x="220" y="1033" text-anchor="middle">DMC + clone + Adam + epoch</text>
+  <text class="small" x="220" y="1056" text-anchor="middle">RNG + histories + best BD-rate</text>
+  <text class="small" x="220" y="1079" text-anchor="middle">atomic save: video_{tag}_last.pth.tar</text>
+  <path class="line" d="M375 1034H435"/>
+  <rect class="card persist" x="435" y="975" width="235" height="118" rx="10"/>
+  <text class="label" x="552" y="1008" text-anchor="middle">--resume [PATH]</text>
+  <text class="small" x="552" y="1036" text-anchor="middle">restore model + Adam + RNG</text>
+  <text class="small" x="552" y="1059" text-anchor="middle">continue at next epoch</text>
+  <text class="small" x="552" y="1082" text-anchor="middle">incomplete epoch repeats</text>
+  <path class="loop" d="M552 975V935H285V885"/>
+  <rect class="card green" x="710" y="975" width="235" height="118" rx="10"/>
+  <text class="label" x="827" y="1006" text-anchor="middle">Training curves</text>
+  <text class="small" x="827" y="1035" text-anchor="middle">Total Loss • BPP</text>
+  <text class="small" x="827" y="1058" text-anchor="middle">Feature MSE</text>
+  <text class="small" x="827" y="1082" text-anchor="middle">PNG + JSON history</text>
+
+  <!-- Validation -->
+  <rect class="panel" x="1010" y="910" width="750" height="270" rx="18"/>
+  <text class="h2" x="1035" y="948">OPTIONAL PERIODIC VALIDATION / CHECKPOINT SELECTION</text>
+  <rect class="card eval" x="1035" y="985" width="150" height="90" rx="10"/>
+  <text class="label" x="1110" y="1017" text-anchor="middle">QP points</text>
+  <text class="body" x="1110" y="1048" text-anchor="middle">0, 21, 42, 63</text>
+  <path class="line" d="M1185 1030H1225"/>
+  <rect class="card eval" x="1225" y="985" width="170" height="90" rx="10"/>
+  <text class="label" x="1310" y="1017" text-anchor="middle">Real bitstream</text>
+  <text class="small" x="1310" y="1048" text-anchor="middle">DCVC-RT enc/dec</text>
+  <path class="line" d="M1395 1030H1435"/>
+  <rect class="card eval" x="1435" y="985" width="145" height="90" rx="10"/>
+  <text class="label" x="1507" y="1017" text-anchor="middle">Task detector</text>
+  <text class="small" x="1507" y="1048" text-anchor="middle">trained 0..4 + frozen 5..23</text>
+  <path class="line" d="M1580 1030H1620"/>
+  <rect class="card eval" x="1620" y="985" width="115" height="90" rx="10"/>
+  <text class="label" x="1677" y="1017" text-anchor="middle">BD-rate</text>
+  <text class="small" x="1677" y="1048" text-anchor="middle">lower is best</text>
+  <path class="thin" d="M1677 1075V1120H1380"/>
+  <rect class="card green" x="1225" y="1110" width="310" height="50" rx="10"/>
+  <text class="label" x="1380" y="1142" text-anchor="middle">video_{tag}_best.pth.tar</text>
+</svg>

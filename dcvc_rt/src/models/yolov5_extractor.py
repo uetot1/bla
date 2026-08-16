@@ -54,15 +54,13 @@ def load_yolov5(
         raise FileNotFoundError(f"YOLOv5 weights not found: {weights_path}")
 
     if repository_path is None and weights_path is not None:
-        from models.common import AutoShape, DetectMultiBackend
+        from models.common import AutoShape
+        from models.experimental import attempt_load
 
-        detector = DetectMultiBackend(
-            weights=str(weights_path),
-            device=torch.device("cpu"),
-            dnn=False,
-            fp16=False,
-            fuse=False,
-        )
+        with _allow_legacy_yolov5_checkpoint_loading():
+            detector = attempt_load(
+                str(weights_path), device=torch.device("cpu"), fuse=False
+            )
         return AutoShape(detector, verbose=False)
 
     source = "local" if repository_path is not None else "github"
@@ -192,7 +190,9 @@ class YOLOv5FeatureExtractor(nn.Module):
             )
 
         yolo = load_yolov5(model_name, repository=repository, weights=weights)
-        detection_model = yolo.model.model
+        detection_model = (
+            yolo.model.model if getattr(yolo, "dmb", False) else yolo.model
+        )
         layers = list(detection_model.model.children())
         final_layer = max(indices[-1], cloned_frontend_last_layer)
         if final_layer >= len(layers):
@@ -271,7 +271,10 @@ def install_cloned_frontend(
         raise ValueError(
             "last_frontend_layer must be 4 for the five-layer front-end protocol"
         )
-    layers = list(detector.model.model.model.children())
+    detection_model = (
+        detector.model.model if getattr(detector, "dmb", False) else detector.model
+    )
+    layers = list(detection_model.model.children())
     if last_frontend_layer >= len(layers):
         raise ValueError(
             f"YOLOv5 detector has only {len(layers)} layers, but cloned front "

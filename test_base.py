@@ -1,4 +1,5 @@
 import argparse
+import hashlib
 import io
 import json
 from pathlib import Path
@@ -23,6 +24,15 @@ from svc_machine.feature_extractor import install_cloned_frontend
 #=======================================================================================================================
 def torch2img(x: torch.Tensor) -> Image.Image:
     return ToPILImage()(x.clamp_(0, 1).squeeze())
+
+
+def file_identity(path):
+    path = Path(path).resolve()
+    digest = hashlib.sha256()
+    with path.open('rb') as file:
+        for block in iter(lambda: file.read(1024 * 1024), b''):
+            digest.update(block)
+    return {'path': str(path), 'sha256': digest.hexdigest()}
 
 
 def load_labels(path, height, width, device):
@@ -179,7 +189,7 @@ class Pframe(CompressModel):
 def encode_the_base_layer(model_path_i, model_path_p, qps, no_frames, inp_path, labels_path,
                           prefix, out_path, gop, fps, img_size, weights, map_metric,
                           anchor_path, result_path, force_zero_thres, reset_interval,
-                          save_frames=True):
+                          save_frames=True, resume=False, progress_path=None):
     if no_frames <= 0 or gop <= 0 or fps <= 0:
         raise ValueError('no_frames, gop and fps must be positive')
     if tuple(qps) != (0, 21, 42, 63):
@@ -194,6 +204,25 @@ def encode_the_base_layer(model_path_i, model_path_p, qps, no_frames, inp_path, 
 
     image_paths = paths_for_points(model_path_i, 'model_path_i')
     video_paths = paths_for_points(model_path_p, 'model_path_p')
+    progress_path = Path(progress_path) if progress_path else Path(out_path) / 'dcvc_progress.json'
+    identity = {
+        'qps': list(qps),
+        'model_path_i': [file_identity(path) for path in dict.fromkeys(image_paths)],
+        'model_path_p': [file_identity(path) for path in dict.fromkeys(video_paths)],
+        'no_frames': no_frames, 'inp_path': str(Path(inp_path).resolve()),
+        'labels_path': str(Path(labels_path).resolve()), 'prefix': prefix, 'gop': gop,
+        'fps': fps, 'img_size': img_size, 'weights': str(Path(weights).resolve()),
+        'force_zero_thres': force_zero_thres, 'reset_interval': reset_interval,
+    }
+    state = {'schema_version': 1, 'identity': identity, 'points': []}
+    if resume and progress_path.is_file():
+        state = json.loads(progress_path.read_text(encoding='utf-8'))
+        if state.get('schema_version') != 1 or state.get('identity') != identity:
+            raise ValueError('DCVC resume progress uses a different evaluation configuration')
+        print(f'Resuming DCVC evaluation from {progress_path}')
+    points = list(state['points'])
+    completed_qps = {point['qp'] for point in points}
+
     device = select_device('', batch_size=1)
     detector = DetectMultiBackend(
         weights=weights, device=device, dnn=False, fp16=False, fuse=False)
@@ -205,8 +234,10 @@ def encode_the_base_layer(model_path_i, model_path_p, qps, no_frames, inp_path, 
     feature_extractor.conf = 0.001
     feature_extractor.iou = 0.6
 
-    points = []
     for qp, image_path, video_path in zip(qps, image_paths, video_paths):
+        if qp in completed_qps:
+            print(f'DCVC-RT QP {qp} already complete; skipping')
+            continue
         checkpoint = torch.load(video_path, map_location='cpu', weights_only=True)
         cloned_frontend = checkpoint.get('cloned_frontend_state_dict') \
             if isinstance(checkpoint, dict) else None
@@ -221,6 +252,11 @@ def encode_the_base_layer(model_path_i, model_path_p, qps, no_frames, inp_path, 
                          img_size, save_frames)
         point['trained_cloned_frontend'] = cloned_frontend is not None
         points.append(point)
+        state['points'] = points
+        progress_path.parent.mkdir(parents=True, exist_ok=True)
+        temporary_path = progress_path.with_suffix(progress_path.suffix + '.tmp')
+        temporary_path.write_text(json.dumps(state, indent=2), encoding='utf-8')
+        temporary_path.replace(progress_path)
         print(f"QP {qp}: {point['bitrate_kbps']:.3f} kbps, "
               f"mAP@0.5={point['map50']:.6f}, mAP@0.5:0.95={point['map50_95']:.6f}")
 
@@ -236,6 +272,7 @@ def encode_the_base_layer(model_path_i, model_path_p, qps, no_frames, inp_path, 
     result_path.write_text(json.dumps(result, indent=2), encoding='utf-8')
 
     return result
+
 
 #=======================================================================================================================
 def parse_arguments():

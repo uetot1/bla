@@ -187,3 +187,58 @@ The single variable-rate checkpoint, including its trained cloned front-end, is 
 Use `--map_metric map50` when the anchor contains `map50`; the default is `map50_95`, corresponding to the average over IoU thresholds `0.50:0.05:0.95` defined by the CTC document.
 
 This is not identical to the other DCVC-RT repository: only its codec and reliability mechanisms are reused. The five-frame SVC feature objective, layer-4 teacher/clone supervision, Adam `1e-6`, 10-epoch schedule, and lambda range `2..16` remain project-specific. Because the codec backbone differs from the paper's original codec, its published numerical results are not expected to match exactly.
+
+## HEVC x265 comparison using the reference evaluator
+
+`evaluate_hevc.py` and the manifest/evaluation utilities are ported from
+[`uetot1/DCVC-RT`](https://github.com/uetot1/DCVC-RT) at commit
+`6cb7bcf6b30c3c51f712fc14541302740c603a3c`. The evaluator reads the repository's
+native manifest schema (`sequences`, not a top-level `prefix`), encodes an RGB
+source as BT.709 YUV444 10-bit Low-Delay P, evaluates every decoded frame with
+the frozen YOLO detector, counts complete HEVC bitstreams, and resumes after
+each completed sequence.
+
+```bash
+python evaluate_hevc.py \
+  --data-dir /kaggle/input/class-d/vcm_eval \
+  --dataset-manifest /kaggle/input/class-d/vcm_eval/manifest.json \
+  --x265-encoder x265 \
+  --qps 22 27 32 37 42 47 \
+  --chroma-format 444 \
+  --bit-depth 10 \
+  --preset medium \
+  --yolov5-weights ./yolov5s.pt \
+  --resume \
+  --keep-progress-checkpoint
+```
+
+Evaluate the trained SVC/DCVC-RT base checkpoint with the identical manifest
+and detector:
+
+```bash
+python evaluate_vcm.py --mode codec \
+  --data-dir /kaggle/input/class-d/vcm_eval \
+  --dataset-manifest /kaggle/input/class-d/vcm_eval/manifest.json \
+  --image-ckpt /kaggle/input/pre-trained-model/cvpr2025_image.pth.tar \
+  --video-ckpt /kaggle/input/latest/video_variable_rate_last.pth \
+  --qps 0 21 42 63 \
+  --reset-interval 64 \
+  --force-zero-thres 0.12 \
+  --yolov5-weights ./yolov5s.pt \
+  --method-name dcvc_rt_svc_base_epoch20
+```
+
+Finally compute both BD-rate-mAP values and create two separate plots:
+
+```bash
+python evaluate_vcm.py --mode bdrate \
+  --anchor-results output/hevc_evaluation/hevc_x265_ldp_rgb444_10bit_results.json \
+  --candidate-results output/evaluation/dcvc_rt_svc_base_epoch20_results.json \
+  --rate actual_bpp \
+  --metric map5095 \
+  --output-dir output/comparison_x265
+```
+
+The plots are `rd_curve_actual_bpp_map50.png` and
+`rd_curve_actual_bpp_map5095.png`; `bd_rate_map.json` contains numeric results
+for both metrics.

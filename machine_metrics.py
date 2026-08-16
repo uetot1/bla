@@ -13,12 +13,12 @@ def bd_rate_map(anchor_points, test_points, map_key='map50_95'):
     def curve(points):
         rates = [float(point['bitrate_kbps']) for point in points]
         maps = [float(point[map_key]) for point in points]
-        if (len(points) != 4 or any(rate <= 0 for rate in rates) or
-                len(set(rates)) != 4 or len(set(maps)) != 4 or
+        if (len(points) < 4 or any(rate <= 0 for rate in rates) or
+                len(set(rates)) != len(points) or len(set(maps)) != len(points) or
                 any(not 0 <= value <= 1 for value in maps) or
                 not all(math.isfinite(value) for value in rates + maps)):
             raise ValueError(
-                'BD-rate-mAP requires four unique positive rates and four unique finite mAP values in 0..1')
+                'BD-rate-mAP requires at least four unique positive rates and unique finite mAP values in 0..1')
         ordered = sorted(zip(rates, maps))
         if not all(left[1] < right[1] for left, right in zip(ordered, ordered[1:])):
             raise ValueError('BD-rate-mAP points must form a strictly increasing bitrate-mAP curve')
@@ -62,7 +62,9 @@ def bd_rate_map(anchor_points, test_points, map_key='map50_95'):
 
 if __name__ == '__main__':
     anchor = [{'bitrate_kbps': rate, 'map50_95': quality}
-              for rate, quality in zip((100, 200, 400, 800), (0.2, 0.3, 0.4, 0.5))]
-    test = [{**point, 'bitrate_kbps': point['bitrate_kbps'] * 0.8} for point in anchor]
+              for rate, quality in zip((100, 200, 400, 800, 1600, 3200),
+                                       (0.1, 0.2, 0.3, 0.4, 0.5, 0.6))]
+    test = [{**anchor[index], 'bitrate_kbps': anchor[index]['bitrate_kbps'] * 0.8}
+            for index in (1, 2, 3, 4)]
     assert abs(bd_rate_map(anchor, test) + 20) < 1e-6
     print('BD-rate-mAP self-check passed')

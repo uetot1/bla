@@ -92,24 +92,26 @@ def lambda_for_qp(qp):
 
 
 class VimeoSeptuplet(Dataset):
-    def __init__(self, root, crop_size=256, group_size=5):
+    def __init__(self, root, crop_size=256, group_size=5,
+                 list_name='sep_trainlist.txt', random_crop=True):
         self.root = Path(root)
         self.sequence_root = self.root / 'sequences'
-        list_path = self.root / 'sep_trainlist.txt'
+        list_path = self.root / list_name
         if not self.sequence_root.is_dir() or not list_path.is_file():
             raise FileNotFoundError(
-                f'{self.root} must contain sequences/ and sep_trainlist.txt')
+                f'{self.root} must contain sequences/ and {list_name}')
         self.sequences = [line.strip() for line in list_path.read_text().splitlines() if line.strip()]
         if not self.sequences:
             raise ValueError(f'No Vimeo-90K sequences listed in {list_path}')
         self.crop_size = crop_size
         self.group_size = group_size
+        self.random_crop = random_crop
 
     def __len__(self):
         return len(self.sequences)
 
     def __getitem__(self, index):
-        start = random.randint(1, 8 - self.group_size)
+        start = random.randint(1, 8 - self.group_size) if self.random_crop else 1
         folder = self.sequence_root / self.sequences[index]
         frames = []
         for frame_index in range(start, start + self.group_size):
@@ -121,8 +123,12 @@ class VimeoSeptuplet(Dataset):
             raise ValueError(f'Frame sizes differ in {folder}')
         if height < self.crop_size or width < self.crop_size:
             raise ValueError(f'{folder} is smaller than {self.crop_size}x{self.crop_size}')
-        top = random.randint(0, height - self.crop_size)
-        left = random.randint(0, width - self.crop_size)
+        if self.random_crop:
+            top = random.randint(0, height - self.crop_size)
+            left = random.randint(0, width - self.crop_size)
+        else:
+            top = (height - self.crop_size) // 2
+            left = (width - self.crop_size) // 2
         return torch.stack([
             frame[:, top:top + self.crop_size, left:left + self.crop_size]
             for frame in frames
@@ -142,9 +148,12 @@ def save_training_outputs(history, json_path, plot_path):
     for axis, key, title in zip(
             axes, ('total_loss', 'bpp', 'feature_mse'),
             ('Total Loss', 'BPP', 'Feature MSE')):
-        axis.plot(epochs, [item[key] for item in history], marker='o')
+        axis.plot(epochs, [item[key] for item in history], marker='o', label='train')
+        axis.plot(epochs, [item.get(f'val_{key}', math.nan) for item in history],
+                  marker='s', label='validation')
         axis.set(title=title, xlabel='Epoch', ylabel=title)
         axis.grid(True, alpha=0.3)
+        axis.legend()
     figure.tight_layout()
     figure.savefig(plot_path, dpi=150)
     plt.close(figure)
@@ -364,6 +373,58 @@ def select_best_checkpoint(args, tag, validation_config):
           f'{best["bd_rate_map_percent"]:.3f}% -> {best_path}')
 
 
+def forward_group(model, system, image_model, teacher, sequences, base_qp, group_size):
+    lambda_task = lambda_for_qp(base_qp)
+    system.video_model.clear_dpb()
+    system.video_model.set_curr_poc(0)
+    with torch.no_grad():
+        reference_ycbcr = image_model.forward_reconstruction(
+            rgb2ycbcr(sequences[:, 0]), base_qp)
+    system.video_model.add_ref_frame(None, reference_ycbcr)
+
+    rgb_frames = sequences[:, 1:]
+    ycbcr_frames = torch.stack([
+        rgb2ycbcr(rgb_frames[:, index])
+        for index in range(rgb_frames.shape[1])
+    ], dim=1)
+    target_features = torch.stack([
+        extract_teacher_feature(teacher, rgb_frames[:, index])
+        for index in range(rgb_frames.shape[1])
+    ], dim=1)
+    qps = tuple(system.video_model.shift_qp(
+        base_qp, INDEX_MAP[frame_index % 8])
+        for frame_index in range(1, group_size))
+    result = model(ycbcr_frames, target_features, qps, lambda_task)
+    return result, lambda_task
+
+
+@torch.no_grad()
+def validate_training_epoch(model, system, image_model, teacher, loader,
+                            group_size, device, rank, world_size):
+    model.eval()
+    totals = torch.zeros(4, device=device, dtype=torch.float64)
+    progress = tqdm(loader, desc='validation', disable=rank != 0)
+    for batch_index, sequences in enumerate(progress):
+        base_qp = VALIDATION_QPS[batch_index % len(VALIDATION_QPS)]
+        sequences = sequences.to(device, non_blocking=True)
+        (loss, rate, task_loss), _ = forward_group(
+            model, system, image_model, teacher, sequences, base_qp, group_size)
+        system.video_model.clear_dpb()
+        totals += torch.tensor(
+            [loss.item(), rate.item(), task_loss.item(), 1],
+            device=device, dtype=torch.float64)
+    if world_size > 1:
+        dist.all_reduce(totals)
+    model.train()
+    if totals[3].item() == 0:
+        raise RuntimeError('No complete validation batch was produced')
+    return {
+        'val_total_loss': (totals[0] / totals[3]).item(),
+        'val_bpp': (totals[1] / totals[3]).item(),
+        'val_feature_mse': (totals[2] / totals[3]).item(),
+    }
+
+
 def train_worker(args, device, rank, world_size, local_rank):
     if args.epochs <= 0 or args.learning_rate <= 0 or args.batch_size <= 0 or args.workers < 0:
         raise ValueError('epochs, learning_rate and batch_size must be positive; workers cannot be negative')
@@ -382,12 +443,23 @@ def train_worker(args, device, rank, world_size, local_rank):
         raise ValueError('Real-bitstream validation requires a CUDA device')
 
     dataset = VimeoSeptuplet(args.dataset, args.crop_size, args.group_size)
+    validation_dataset = VimeoSeptuplet(
+        args.dataset, args.crop_size, args.group_size,
+        list_name=args.validation_list, random_crop=False)
     if len(dataset) < args.batch_size:
         raise ValueError('Dataset must contain at least batch_size sequences')
+    if len(validation_dataset) < args.batch_size:
+        raise ValueError('Validation dataset must contain at least batch_size sequences')
     sampler = DistributedSampler(dataset, shuffle=True) if world_size > 1 else None
+    validation_sampler = DistributedSampler(
+        validation_dataset, shuffle=False, drop_last=True) if world_size > 1 else None
     loader = DataLoader(dataset, batch_size=args.batch_size // world_size,
                         shuffle=sampler is None, sampler=sampler,
                         num_workers=args.workers, pin_memory=device.type == 'cuda', drop_last=True)
+    validation_loader = DataLoader(
+        validation_dataset, batch_size=args.batch_size // world_size,
+        shuffle=False, sampler=validation_sampler, num_workers=args.workers,
+        pin_memory=device.type == 'cuda', drop_last=True)
 
     image_model = DMCI().to(device)
     image_model.load_state_dict(get_state_dict(args.model_path_i))
@@ -417,6 +489,7 @@ def train_worker(args, device, rank, world_size, local_rank):
     training_history = []
     validation_history = []
     best_bd_rate = math.inf
+    best_val_loss = math.inf
 
     if args.resume:
         resume_path = last_checkpoint if args.resume == 'auto' else Path(args.resume)
@@ -430,6 +503,9 @@ def train_worker(args, device, rank, world_size, local_rank):
         training_history = checkpoint.get('training_history', [])
         validation_history = checkpoint.get('validation_history', [])
         best_bd_rate = checkpoint.get('best_bd_rate_map_percent', math.inf)
+        best_val_loss = min(
+            (item.get('val_total_loss', math.inf) for item in training_history),
+            default=math.inf)
         if rank == 0:
             print(f'Resumed {resume_path} from epoch {checkpoint["epoch"]}')
 
@@ -450,31 +526,11 @@ def train_worker(args, device, rank, world_size, local_rank):
         for sequences in progress:
             base_qp = synchronized_qp(
                 args.mode, args.fixed_qp, device, rank, world_size)
-            lambda_task = lambda_for_qp(base_qp)
             sequences = sequences.to(device, non_blocking=True)
-            system.video_model.clear_dpb()
-            system.video_model.set_curr_poc(0)
             optimizer.zero_grad(set_to_none=True)
-
-            with torch.no_grad():
-                reference_ycbcr = image_model.forward_reconstruction(
-                    rgb2ycbcr(sequences[:, 0]), base_qp)
-            system.video_model.add_ref_frame(None, reference_ycbcr)
-
-            rgb_frames = sequences[:, 1:]
-            ycbcr_frames = torch.stack([
-                rgb2ycbcr(rgb_frames[:, index])
-                for index in range(rgb_frames.shape[1])
-            ], dim=1)
-            target_features = torch.stack([
-                extract_teacher_feature(teacher, rgb_frames[:, index])
-                for index in range(rgb_frames.shape[1])
-            ], dim=1)
-            qps = tuple(system.video_model.shift_qp(
-                base_qp, INDEX_MAP[frame_index % 8])
-                for frame_index in range(1, args.group_size))
-            loss, rate, task_loss = model(
-                ycbcr_frames, target_features, qps, lambda_task)
+            (loss, rate, task_loss), lambda_task = forward_group(
+                model, system, image_model, teacher, sequences,
+                base_qp, args.group_size)
             loss.backward()
             grad_norm = torch.nn.utils.clip_grad_norm_(
                 trainable_parameters, args.grad_clip, error_if_nonfinite=True)
@@ -500,13 +556,19 @@ def train_worker(args, device, rank, world_size, local_rank):
         global_batches = int(reduced[4].item())
         if global_batches == 0:
             raise RuntimeError('No complete training batch was produced')
-        training_history.append({
+        record = {
             'epoch': epoch,
             'total_loss': reduced[0].item() / global_batches,
             'bpp': reduced[1].item() / global_batches,
             'feature_mse': reduced[2].item() / global_batches,
             'grad_norm': reduced[3].item() / global_batches,
-        })
+        }
+        record.update(validate_training_epoch(
+            model, system, image_model, teacher, validation_loader,
+            args.group_size, device, rank, world_size))
+        training_history.append(record)
+        improved_val_loss = record['val_total_loss'] < best_val_loss
+        best_val_loss = min(best_val_loss, record['val_total_loss'])
         if rank == 0:
             save_training_outputs(training_history, history_path, plot_path)
             shutil.copy2(
@@ -524,6 +586,10 @@ def train_worker(args, device, rank, world_size, local_rank):
             if validation_due:
                 save_evaluation_checkpoint(
                     save_dir / f'video_{tag}_epoch_{epoch:04d}.pth',
+                    epoch, args.mode, system, fixed_qp)
+            if improved_val_loss:
+                save_evaluation_checkpoint(
+                    save_dir / 'best_val_loss.pth',
                     epoch, args.mode, system, fixed_qp)
         if world_size > 1:
             dist.barrier()
@@ -565,6 +631,8 @@ def parse_args():
     parser.add_argument('--workers', type=int, default=4)
     parser.add_argument('--device', default='cuda')
     parser.add_argument('--seed', type=int, default=0)
+    parser.add_argument('--validation_list', default='sep_testlist.txt',
+                        help='Held-out Vimeo list used for deterministic validation')
     parser.add_argument('--validation_config',
                         help='Optional JSON config for post-DDP BD-rate-mAP best selection')
     parser.add_argument('--validation_interval', type=int, default=1)
@@ -604,7 +672,15 @@ if __name__ == '__main__':
                    for parameter in frozen_system.video_model.parameters())
         with TemporaryDirectory() as temporary_directory:
             directory = Path(temporary_directory)
-            history = [{'epoch': 1, 'total_loss': 1.0, 'bpp': 0.5, 'feature_mse': 0.25}]
+            history = [{
+                'epoch': 1,
+                'total_loss': 1.0,
+                'bpp': 0.5,
+                'feature_mse': 0.25,
+                'val_total_loss': 1.1,
+                'val_bpp': 0.55,
+                'val_feature_mse': 0.3,
+            }]
             system = torch.nn.Module()
             system.video_model = torch.nn.Linear(1, 1)
             system.cloned_frontend = torch.nn.Linear(1, 1)

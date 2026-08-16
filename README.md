@@ -119,6 +119,8 @@ checkpoints/base_task/variable_rate_validation_history.json
 
 `variable_rate_training_curves.png` contains separate Total Loss, BPP and Feature MSE plots. The JSON/latest plot are refreshed after every completed epoch, and an epoch-numbered plot is retained for every epoch. `best.pth` records the selected epoch and both BD-rate-mAP50 and BD-rate-mAP50:95 results.
 
+Every epoch also evaluates `sep_testlist.txt` with frames `im1..im5`, a deterministic centre crop and QPs cycling through `0,21,42,63`. Each chart contains `train` and `validation` lines, and the lowest held-out total loss is saved as `best_val_loss.pth`. This checkpoint is an overfitting monitor; `best.pth` remains reserved for the later BD-rate-mAP selection.
+
 If training is interrupted, continue from the next epoch stored in the default `last` checkpoint. `--epochs` is the final total, not the number of additional epochs:
 
 ```bash

@@ -371,8 +371,6 @@ def train_worker(args, device, rank, world_size, local_rank):
         raise ValueError('validation_interval and grad_clip must be positive')
     if args.batch_size % world_size:
         raise ValueError('Global batch_size must be divisible by the distributed world size')
-    if not args.validation_config:
-        raise ValueError('--validation_config is required to select best.pth by BD-rate-mAP')
     random.seed(args.seed + rank)
     torch.manual_seed(args.seed + rank)
     if device.type == 'cuda':
@@ -540,7 +538,7 @@ def train(args):
     finally:
         if dist.is_initialized():
             dist.destroy_process_group()
-    if completed and rank == 0:
+    if completed and rank == 0 and args.validation_config:
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
@@ -568,7 +566,7 @@ def parse_args():
     parser.add_argument('--device', default='cuda')
     parser.add_argument('--seed', type=int, default=0)
     parser.add_argument('--validation_config',
-                        help='Required JSON config for post-DDP BD-rate-mAP best selection')
+                        help='Optional JSON config for post-DDP BD-rate-mAP best selection')
     parser.add_argument('--validation_interval', type=int, default=1)
     parser.add_argument('--resume', nargs='?', const='auto',
                         help='Resume at the next epoch; omit PATH to use this mode last checkpoint')

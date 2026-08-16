@@ -90,24 +90,21 @@ python train_base.py --self_check
 python train_base.py --dataset /path/to/vimeo_septuplet --check_dataset
 ```
 
-Edit `validation_config.example.json` with the labelled VCM manifest and the HEVC result JSON produced by `evaluate_hevc.py`, then train:
+Train without an HEVC anchor:
 
 ```bash
 python train_base.py \
-  --dataset /path/to/vimeo_septuplet \
-  --validation_config ./validation_config.example.json \
-  --validation_interval 1
+  --dataset /path/to/vimeo_septuplet
 ```
 
 For DDP, keep `--batch_size 4` as the global batch size and choose a process count that divides four:
 
 ```bash
 torchrun --standalone --nproc_per_node=2 train_base.py \
-  --dataset /path/to/vimeo_septuplet \
-  --validation_config ./validation_config.example.json
+  --dataset /path/to/vimeo_septuplet
 ```
 
-The trainer saves a lightweight candidate at each validation interval. After DDP training finishes, rank 0 evaluates those candidates at QPs `0 21 42 63` using actual bitstreams, the same manifest/detector as the HEVC anchor, and selects the lowest BD-rate-mAP automatically:
+The trainer saves a lightweight candidate at each validation interval. If `--validation_config` is supplied, rank 0 evaluates those candidates after DDP training at QPs `0 21 42 63` using actual bitstreams, the same manifest/detector as the HEVC anchor, and selects the lowest BD-rate-mAP automatically:
 
 ```text
 checkpoints/base_task/video_variable_rate_last.pth.tar
@@ -128,7 +125,6 @@ If training is interrupted, continue from the next epoch stored in the default `
 python train_base.py \
   --dataset /path/to/vimeo_septuplet \
   --epochs 10 \
-  --validation_config ./validation_config.example.json \
   --resume
 ```
 
@@ -136,7 +132,7 @@ Use `--resume /path/to/checkpoint.pth.tar` for an explicit checkpoint. The check
 
 Checkpoints from the earlier joint DMC/clone optimizer use schema 2 and cannot be resumed into this DMC-only optimizer; start this frozen-YOLO run from the DCVC-RT pretrained checkpoint.
 
-`--validation_config` is required for training so every completed run produces a BD-rate-mAP-selected `best.pth`. `--validation_interval 1` validates every epoch; a larger value reduces validation time but selects the best only among saved intervals and the final epoch.
+`--validation_config` is optional and HEVC never participates in optimization. Without it, training produces `last` and epoch candidates but no genuine BD-rate-selected `best.pth`. After creating the HEVC result, rerun the completed job with `--resume --validation_config ./validation_config.example.json`; no epoch is retrained and the saved candidates are evaluated. `--validation_interval 1` retains every epoch; a larger value retains only those intervals and the final epoch.
 
 Train the requested fixed-rate baseline with QP 42 and lambda 8 using the same validation data:
 

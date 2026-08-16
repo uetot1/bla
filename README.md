@@ -13,7 +13,7 @@ The enhancement layer and the PSNR, SSIM, MS-SSIM and reconstruction-MSE evaluat
 
 - `DMCI` with `cvpr2025_image.pth.tar` encodes each GOP's I-frame.
 - `DMC` with `cvpr2025_video.pth.tar` encodes the following P-frames.
-- `yolov5s.pt` supplies the frozen teacher and initializes the trainable cloned front-end (layers `0..4`). Its back-end (layers `5..23`) stays frozen for detection evaluation.
+- `yolov5s.pt` supplies the frozen teacher and initializes the also-frozen cloned front-end (layers `0..4`). Its back-end (layers `5..23`) stays frozen for detection evaluation.
 
 The official DCVC-RT source is vendored under `dcvc_rt/` and pinned in `dcvc_rt/UPSTREAM.md` with its license and notice.
 
@@ -81,7 +81,7 @@ For the five-frame group, the DCVC-RT hierarchical offsets are `[0,8,0,4,0]`. Fr
 L = mean_t(rate_P(t) + lambda_task(qp) * MSE(F4(x_t), Fclone4(xhat_t)))
 ```
 
-There is no I-frame loss, pixel MSE, detection loss, PSNR, MS-SSIM, enhancement-layer loss, or label requirement during training. Adam jointly optimizes `DMC` and cloned YOLO layers `0..4`; DMCI, the original teacher, and YOLO back-end layers `5..23` remain frozen. The defaults retain the SVC protocol: random `256x256` crop, five consecutive frames, global batch size 4, Adam at `1e-6`, and 10 epochs. Gradients are clipped to norm `1.0` by default.
+There is no I-frame loss, pixel MSE, detection loss, PSNR, MS-SSIM, enhancement-layer loss, or label requirement during training. Adam optimizes only `DMC`; DMCI, the original YOLO teacher, the cloned YOLO front-end `0..4`, and YOLO back-end `5..23` are all frozen. Gradients still pass through the frozen clone to the reconstructed frame and DMC. The defaults retain the SVC protocol: random `256x256` crop, five consecutive frames, global batch size 4, Adam at `1e-6`, and 10 epochs. Gradients are clipped to norm `1.0` by default.
 
 First check the interpolation and dataset:
 
@@ -90,7 +90,7 @@ python train_base.py --self_check
 python train_base.py --dataset /path/to/vimeo_septuplet --check_dataset
 ```
 
-Edit `validation_config.example.json` with a labelled validation sequence and its measured VTM anchor, then train:
+Edit `validation_config.example.json` with the labelled VCM manifest and the HEVC result JSON produced by `evaluate_hevc.py`, then train:
 
 ```bash
 python train_base.py \
@@ -99,26 +99,28 @@ python train_base.py \
   --validation_interval 1
 ```
 
-For DDP, keep `--batch_size 4` as the global batch size and choose a process count that divides four. Actual-bitstream validation is deliberately run separately because it is single-GPU:
+For DDP, keep `--batch_size 4` as the global batch size and choose a process count that divides four:
 
 ```bash
-torchrun --standalone --nproc_per_node=4 train_base.py \
-  --dataset /path/to/vimeo_septuplet
-
-python test_base.py --qps 0 21 42 63 ...
+torchrun --standalone --nproc_per_node=2 train_base.py \
+  --dataset /path/to/vimeo_septuplet \
+  --validation_config ./validation_config.example.json
 ```
 
-After each validation, the same checkpoint is encoded at QPs `0 21 42 63`; actual bitrate and frozen-YOLO mAP are used to calculate BD-rate-mAP. The lowest validation BD-rate is selected automatically:
+The trainer saves a lightweight candidate at each validation interval. After DDP training finishes, rank 0 evaluates those candidates at QPs `0 21 42 63` using actual bitstreams, the same manifest/detector as the HEVC anchor, and selects the lowest BD-rate-mAP automatically:
 
 ```text
 checkpoints/base_task/video_variable_rate_last.pth.tar
-checkpoints/base_task/video_variable_rate_best.pth.tar
+checkpoints/base_task/video_variable_rate_epoch_0001.pth
+checkpoints/base_task/best.pth
+checkpoints/base_task/best_validation.json
 checkpoints/base_task/variable_rate_training_history.json
 checkpoints/base_task/variable_rate_training_curves.png
+checkpoints/base_task/variable_rate_training_curves_epoch_0001.png
 checkpoints/base_task/variable_rate_validation_history.json
 ```
 
-`variable_rate_training_curves.png` contains separate Total Loss, BPP and Feature MSE plots. The JSON and plot are refreshed after every completed epoch.
+`variable_rate_training_curves.png` contains separate Total Loss, BPP and Feature MSE plots. The JSON/latest plot are refreshed after every completed epoch, and an epoch-numbered plot is retained for every epoch. `best.pth` records the selected epoch and both BD-rate-mAP50 and BD-rate-mAP50:95 results.
 
 If training is interrupted, continue from the next epoch stored in the default `last` checkpoint. `--epochs` is the final total, not the number of additional epochs:
 
@@ -130,9 +132,11 @@ python train_base.py \
   --resume
 ```
 
-Use `--resume /path/to/checkpoint.pth.tar` for an explicit checkpoint. The checkpoint restores DMC, cloned front-end, Adam, Python/Torch/CUDA RNG state, histories, and the next epoch. DDP resume requires the same process count. An interruption inside an epoch repeats that incomplete epoch because checkpoints are committed only after complete epochs.
+Use `--resume /path/to/checkpoint.pth.tar` for an explicit checkpoint. The checkpoint restores DMC, the frozen cloned front-end, DMC-only Adam, Python/Torch/CUDA RNG state, histories, and the next epoch. DDP resume requires the same process count. An interruption inside an epoch repeats that incomplete epoch because checkpoints are committed only after complete epochs.
 
-Omit `--validation_config` only when periodic selection is not required; in that case only the `last` checkpoint is available. Validation does not save reconstructed PNGs.
+Checkpoints from the earlier joint DMC/clone optimizer use schema 2 and cannot be resumed into this DMC-only optimizer; start this frozen-YOLO run from the DCVC-RT pretrained checkpoint.
+
+`--validation_config` is required for training so every completed run produces a BD-rate-mAP-selected `best.pth`. `--validation_interval 1` validates every epoch; a larger value reduces validation time but selects the best only among saved intervals and the final epoch.
 
 Train the requested fixed-rate baseline with QP 42 and lambda 8 using the same validation data:
 
@@ -171,7 +175,7 @@ Input images and YOLO labels must have matching names such as `Parkscene_000.png
 python test_base.py \
   --qps 0 21 42 63 \
   --model_path_i ./checkpoints/dcvc_rt/cvpr2025_image.pth.tar \
-  --model_path_p ./checkpoints/base_task/video_variable_rate_best.pth.tar \
+  --model_path_p ./checkpoints/base_task/best.pth \
   --inp_path ./input/ParkScene \
   --labels_path ./labels/ParkScene \
   --out_path ./out/ParkScene \
@@ -182,7 +186,7 @@ python test_base.py \
   --anchor_path ./anchors/ParkScene.json
 ```
 
-The single variable-rate checkpoint, including its trained cloned front-end, is reused at all four QPs. Its cloned layers `0..4` replace the detector's original front-end while frozen layers `5..23` produce detections. Reconstructed PNG files and the actual DCVC-RT `.bin` stream are written under `out/ParkScene/qp_<QP>/`. Bitrate is measured from that stream's file size. The evaluator requires exactly QPs `0,21,42,63`, four finite positive-rate Pareto points, a common front-end policy, and overlapping anchor/proposal mAP ranges. The proposal curve and `bd_rate_map_percent` are written to `machine_metrics.json`; a negative value means bitrate saving over the anchor at equal mAP.
+The single variable-rate checkpoint, including its frozen cloned front-end, is reused at all four QPs. Its cloned layers `0..4` replace the detector's original front-end while frozen layers `5..23` produce detections. Reconstructed PNG files and the actual DCVC-RT `.bin` stream are written under `out/ParkScene/qp_<QP>/`. Bitrate is measured from that stream's file size. The evaluator requires exactly QPs `0,21,42,63`, four finite positive-rate Pareto points, a common front-end policy, and overlapping anchor/proposal mAP ranges. The proposal curve and `bd_rate_map_percent` are written to `machine_metrics.json`; a negative value means bitrate saving over the anchor at equal mAP.
 
 Use `--map_metric map50` when the anchor contains `map50`; the default is `map50_95`, corresponding to the average over IoU thresholds `0.50:0.05:0.95` defined by the CTC document.
 

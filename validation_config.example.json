@@ -1,11 +1,18 @@
 {
-  "inp_path": "./validation/frames",
-  "labels_path": "./validation/labels",
-  "prefix": "Parkscene_",
-  "fps": 24,
-  "no_frames": 100,
-  "gop": 32,
-  "anchor_path": "./anchors/ParkScene.json",
-  "img_size": 640,
-  "map_metric": "map50_95"
+  "data_dir": "/kaggle/input/datasets/pduy05/class-d/vcm_eval",
+  "dataset_manifest": "/kaggle/input/datasets/pduy05/class-d/vcm_eval/manifest.json",
+  "anchor_results": "/kaggle/working/evaluation/hevc/hevc_x265_ldp_rgb444_10bit_results.json",
+  "selection_metric": "map5095",
+  "qps": [0, 21, 42, 63],
+  "reset_interval": 64,
+  "force_zero_thres": 0.12,
+  "codec_precision": "fp16",
+  "yolov5_weights": "./yolov5s.pt",
+  "detector_size": 640,
+  "confidence_threshold": 0.001,
+  "nms_iou_threshold": 0.6,
+  "max_detections": 300,
+  "cuda_index": 0,
+  "rate": "actual_bpp",
+  "keep_bitstreams": false
 }

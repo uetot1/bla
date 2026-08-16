@@ -6,12 +6,17 @@ from svc_machine.feature_loss import feature_mse_loss, machine_rate_distortion_l
 
 
 class MachineBaseSystem(nn.Module):
-    """Trainable DCVC-RT DMC plus the SVC cloned YOLO front-end."""
+    """Trainable DCVC-RT DMC with a frozen SVC cloned YOLO front-end."""
 
     def __init__(self, video_model, cloned_frontend):
         super().__init__()
         self.video_model = video_model
         self.cloned_frontend = cloned_frontend
+
+    def train(self, mode=True):
+        super().train(mode)
+        self.cloned_frontend.eval()
+        return self
 
     def forward(self, ycbcr_frames, target_features, qps, lambda_task):
         rates = []

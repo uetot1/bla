@@ -1,9 +1,12 @@
 import argparse
+import gc
 import json
 import math
 import os
 import random
 import shutil
+import subprocess
+import sys
 from pathlib import Path
 
 import torch
@@ -27,6 +30,7 @@ LAMBDA_MIN = 2.0
 LAMBDA_MAX = 16.0
 INDEX_MAP = (0, 1, 0, 2, 0, 2, 0, 2)
 VALIDATION_QPS = (0, 21, 42, 63)
+PROJECT_ROOT = Path(__file__).resolve().parent
 
 
 def setup_distributed(device_name):
@@ -156,9 +160,11 @@ def save_checkpoint(path, epoch, mode, system, optimizer, training_history,
         metadata.update({'fixed_qp': fixed_qp, 'fixed_lambda': lambda_for_qp(fixed_qp)})
     torch.save({
         **metadata,
-        'schema_version': 2,
+        'schema_version': 3,
         'state_dict': system.video_model.state_dict(),
         'cloned_frontend_state_dict': system.cloned_frontend.state_dict(),
+        'trainable_components': ['dcvc_rt_dmc'],
+        'frozen_components': ['dmci', 'yolo_teacher', 'yolo_cloned_frontend'],
         'optimizer': optimizer.state_dict(),
         'training_history': training_history,
         'validation_history': validation_history,
@@ -179,7 +185,7 @@ def resume_training(path, mode, fixed_qp, system, optimizer, world_size):
     missing = sorted(required - checkpoint.keys())
     if missing:
         raise ValueError(f'Resume checkpoint is missing: {", ".join(missing)}')
-    if checkpoint['schema_version'] != 2:
+    if checkpoint['schema_version'] != 3:
         raise ValueError('Unsupported resume checkpoint schema')
     if checkpoint['mode'] != mode:
         raise ValueError(f'Resume checkpoint mode is {checkpoint["mode"]}, not {mode}')
@@ -195,6 +201,23 @@ def resume_training(path, mode, fixed_qp, system, optimizer, world_size):
     return checkpoint
 
 
+def save_evaluation_checkpoint(path, epoch, mode, system, fixed_qp=None):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary_path = path.with_suffix(path.suffix + '.tmp')
+    metadata = {'epoch': epoch, 'mode': mode, 'lambda_range': (LAMBDA_MIN, LAMBDA_MAX)}
+    if fixed_qp is not None:
+        metadata.update({'fixed_qp': fixed_qp, 'fixed_lambda': lambda_for_qp(fixed_qp)})
+    torch.save({
+        **metadata,
+        'schema_version': 3,
+        'state_dict': system.video_model.state_dict(),
+        'cloned_frontend_state_dict': system.cloned_frontend.state_dict(),
+        'trainable_components': ['dcvc_rt_dmc'],
+        'frozen_components': ['dmci', 'yolo_teacher', 'yolo_cloned_frontend'],
+    }, temporary_path)
+    temporary_path.replace(path)
+
+
 def move_optimizer_state(optimizer, device):
     for state in optimizer.state.values():
         for key, value in state.items():
@@ -204,23 +227,141 @@ def move_optimizer_state(optimizer, device):
 
 def load_validation_config(path):
     config = json.loads(Path(path).read_text(encoding='utf-8'))
-    required = {'inp_path', 'labels_path', 'prefix', 'fps', 'no_frames', 'gop', 'anchor_path'}
+    required = {'data_dir', 'dataset_manifest', 'anchor_results'}
     missing = sorted(required - config.keys())
     if missing:
         raise ValueError(f'Missing validation config fields: {", ".join(missing)}')
+    config['selection_metric'] = config.get('selection_metric', 'map5095')
+    if config['selection_metric'] not in ('map50', 'map5095'):
+        raise ValueError('selection_metric must be map50 or map5095')
+    qps = tuple(config.get('qps', VALIDATION_QPS))
+    if qps != VALIDATION_QPS:
+        raise ValueError('Validation QPs must be 0 21 42 63')
+    config['qps'] = qps
+    for key in required:
+        if not Path(config[key]).exists():
+            raise FileNotFoundError(f'Validation {key} not found: {config[key]}')
     return config
 
 
 def validate_checkpoint(args, checkpoint_path, output_dir, config):
-    from test_base import encode_the_base_layer
-    return encode_the_base_layer(
-        (args.model_path_i,), (str(checkpoint_path),), VALIDATION_QPS,
-        config['no_frames'], config['inp_path'], config['labels_path'], config['prefix'],
-        output_dir, config['gop'], config['fps'], config.get('img_size', 640), args.weights,
-        config.get('map_metric', 'map50_95'), config['anchor_path'],
-        str(Path(output_dir) / 'latest_metrics.json'),
-        config.get('force_zero_thres', 0.12), config.get('reset_interval', 64),
-        save_frames=False)
+    output_dir = Path(output_dir)
+    codec_output = output_dir / 'codec'
+    comparison_output = output_dir / 'comparison'
+    bitstream_dir = output_dir / 'bitstreams'
+    method_name = f'validation_epoch_{int(torch.load(checkpoint_path, map_location="cpu", weights_only=True)["epoch"]):04d}'
+    candidate_results = codec_output / f'{method_name}_results.json'
+
+    if not candidate_results.is_file():
+        command = [
+            sys.executable, str(PROJECT_ROOT / 'evaluate_vcm.py'), '--mode', 'codec',
+            '--data-dir', str(config['data_dir']),
+            '--dataset-manifest', str(config['dataset_manifest']),
+            '--image-ckpt', str(args.model_path_i),
+            '--video-ckpt', str(checkpoint_path),
+            '--qps', *(str(qp) for qp in config['qps']),
+            '--reset-interval', str(config.get('reset_interval', 64)),
+            '--force-zero-thres', str(config.get('force_zero_thres', 0.12)),
+            '--codec-precision', config.get('codec_precision', 'fp16'),
+            '--yolov5-weights', str(config.get('yolov5_weights', args.weights)),
+            '--detector-size', str(config.get('detector_size', 640)),
+            '--confidence-threshold', str(config.get('confidence_threshold', 0.001)),
+            '--nms-iou-threshold', str(config.get('nms_iou_threshold', 0.6)),
+            '--max-detections', str(config.get('max_detections', 300)),
+            '--cuda-index', str(config.get('cuda_index', 0)),
+            '--method-name', method_name,
+            '--output-dir', str(codec_output),
+            '--bitstream-dir', str(bitstream_dir),
+        ]
+        if config.get('max_sequences') is not None:
+            command.extend(['--max-sequences', str(config['max_sequences'])])
+        subprocess.run(command, cwd=PROJECT_ROOT, check=True)
+
+    subprocess.run([
+        sys.executable, str(PROJECT_ROOT / 'evaluate_vcm.py'), '--mode', 'bdrate',
+        '--anchor-results', str(config['anchor_results']),
+        '--candidate-results', str(candidate_results),
+        '--rate', config.get('rate', 'actual_bpp'),
+        '--metric', config['selection_metric'],
+        '--output-dir', str(comparison_output),
+    ], cwd=PROJECT_ROOT, check=True)
+    comparison = json.loads(
+        (comparison_output / 'bd_rate_map.json').read_text(encoding='utf-8'))
+    if bitstream_dir.is_dir() and not config.get('keep_bitstreams', False):
+        shutil.rmtree(bitstream_dir)
+    metrics = comparison['metrics']
+    return {
+        'selection_metric': config['selection_metric'],
+        'bd_rate_map_percent': metrics[config['selection_metric']]['bd_rate_percent'],
+        'bd_rate_map50_percent': metrics['map50']['bd_rate_percent'],
+        'bd_rate_map5095_percent': metrics['map5095']['bd_rate_percent'],
+        'candidate_results': str(candidate_results),
+        'comparison_results': str(comparison_output / 'bd_rate_map.json'),
+    }
+
+
+def save_best_checkpoint(source_path, destination_path, validation_record):
+    checkpoint = torch.load(source_path, map_location='cpu', weights_only=True)
+    checkpoint['selected_by'] = validation_record
+    checkpoint['best_bd_rate_map_percent'] = validation_record['bd_rate_map_percent']
+    checkpoint['validation_history'] = [validation_record]
+    temporary_path = destination_path.with_suffix(destination_path.suffix + '.tmp')
+    torch.save(checkpoint, temporary_path)
+    temporary_path.replace(destination_path)
+
+
+def update_validation_metadata(path, history, best_bd_rate):
+    checkpoint = torch.load(path, map_location='cpu', weights_only=True)
+    checkpoint['validation_history'] = history
+    checkpoint['best_bd_rate_map_percent'] = best_bd_rate
+    temporary_path = path.with_suffix(path.suffix + '.tmp')
+    torch.save(checkpoint, temporary_path)
+    temporary_path.replace(path)
+
+
+def select_best_checkpoint(args, tag, validation_config):
+    save_dir = Path(args.save_dir)
+    snapshots = sorted(save_dir.glob(f'video_{tag}_epoch_*.pth'))
+    best_path = save_dir / 'best.pth'
+    if not snapshots:
+        if best_path.is_file():
+            print(f'Best checkpoint already exists: {best_path}')
+            return
+        raise FileNotFoundError('No validation snapshots were saved')
+
+    history_path = save_dir / f'{tag}_validation_history.json'
+    history = json.loads(history_path.read_text(encoding='utf-8')) \
+        if history_path.is_file() else []
+    completed_epochs = {int(record['epoch']) for record in history}
+    for snapshot in snapshots:
+        checkpoint = torch.load(snapshot, map_location='cpu', weights_only=True)
+        epoch = int(checkpoint['epoch'])
+        if epoch in completed_epochs:
+            continue
+        print(f'Validating epoch {epoch} by actual-bitstream BD-rate-mAP...')
+        result = validate_checkpoint(
+            args, snapshot, save_dir / f'validation_{tag}' / f'epoch_{epoch:04d}',
+            validation_config)
+        if not math.isfinite(result['bd_rate_map_percent']):
+            raise ValueError('Validation BD-rate-mAP is not finite')
+        history.append({'epoch': epoch, 'checkpoint': str(snapshot), **result})
+        history.sort(key=lambda record: int(record['epoch']))
+        history_path.write_text(json.dumps(history, indent=2), encoding='utf-8')
+
+    metric = validation_config['selection_metric']
+    best = min(history, key=lambda record: record['bd_rate_map_percent'])
+    best_snapshot = next(
+        snapshot for snapshot in snapshots
+        if int(torch.load(snapshot, map_location='cpu', weights_only=True)['epoch']) == best['epoch'])
+    save_best_checkpoint(best_snapshot, best_path, best)
+    last_path = save_dir / f'video_{tag}_last.pth.tar'
+    if last_path.is_file():
+        update_validation_metadata(
+            last_path, history, best['bd_rate_map_percent'])
+    (save_dir / 'best_validation.json').write_text(
+        json.dumps(best, indent=2), encoding='utf-8')
+    print(f'Best epoch {best["epoch"]}: BD-rate-{metric} '
+          f'{best["bd_rate_map_percent"]:.3f}% -> {best_path}')
 
 
 def train_worker(args, device, rank, world_size, local_rank):
@@ -230,10 +371,8 @@ def train_worker(args, device, rank, world_size, local_rank):
         raise ValueError('validation_interval and grad_clip must be positive')
     if args.batch_size % world_size:
         raise ValueError('Global batch_size must be divisible by the distributed world size')
-    if world_size > 1 and args.validation_config:
-        raise ValueError(
-            'Periodic actual-bitstream validation is single-process; run test_base.py '
-            'on saved DDP checkpoints')
+    if not args.validation_config:
+        raise ValueError('--validation_config is required to select best.pth by BD-rate-mAP')
     random.seed(args.seed + rank)
     torch.manual_seed(args.seed + rank)
     if device.type == 'cuda':
@@ -266,11 +405,14 @@ def train_worker(args, device, rank, world_size, local_rank):
         if world_size > 1 else system
     model.train()
 
-    optimizer = torch.optim.Adam(system.parameters(), lr=args.learning_rate)
+    trainable_parameters = tuple(
+        parameter for parameter in system.video_model.parameters()
+        if parameter.requires_grad
+    )
+    optimizer = torch.optim.Adam(trainable_parameters, lr=args.learning_rate)
     tag = 'variable_rate' if args.mode == 'variable' else f'fixed_qp{args.fixed_qp}'
     save_dir = Path(args.save_dir)
     last_checkpoint = save_dir / f'video_{tag}_last.pth.tar'
-    best_checkpoint = save_dir / f'video_{tag}_best.pth.tar'
     history_path = save_dir / f'{tag}_training_history.json'
     plot_path = save_dir / f'{tag}_training_curves.png'
     start_epoch = 1
@@ -337,7 +479,7 @@ def train_worker(args, device, rank, world_size, local_rank):
                 ycbcr_frames, target_features, qps, lambda_task)
             loss.backward()
             grad_norm = torch.nn.utils.clip_grad_norm_(
-                system.parameters(), args.grad_clip, error_if_nonfinite=True)
+                trainable_parameters, args.grad_clip, error_if_nonfinite=True)
             optimizer.step()
             system.video_model.clear_dpb()
 
@@ -369,66 +511,41 @@ def train_worker(args, device, rank, world_size, local_rank):
         })
         if rank == 0:
             save_training_outputs(training_history, history_path, plot_path)
+            shutil.copy2(
+                plot_path,
+                save_dir / f'{tag}_training_curves_epoch_{epoch:04d}.png')
         fixed_qp = args.fixed_qp if args.mode == 'fixed' else None
-        validation_due = validation_config and (
+        validation_due = (
             epoch % args.validation_interval == 0 or epoch == args.epochs)
-        if validation_due and rank == 0:
-            rng_states = [capture_rng_state(device)]
-            save_checkpoint(last_checkpoint, epoch, args.mode, system, optimizer,
-                            training_history, validation_history, best_bd_rate,
-                            rng_states, world_size, fixed_qp)
-        improved = False
-        if validation_due:
-            del sequences, rgb_frames, ycbcr_frames, reference_ycbcr, target_features, qps
-            del loss, rate, task_loss, grad_norm
-            for current_model in (image_model, system, teacher):
-                current_model.cpu()
-            move_optimizer_state(optimizer, 'cpu')
-            if device.type == 'cuda':
-                torch.cuda.empty_cache()
-            try:
-                result = validate_checkpoint(
-                    args, last_checkpoint, str(save_dir / f'validation_{tag}'),
-                    validation_config)
-            finally:
-                if device.type == 'cuda':
-                    torch.cuda.empty_cache()
-                for current_model in (image_model, system, teacher):
-                    current_model.to(device)
-                move_optimizer_state(optimizer, device)
-                image_model.eval()
-                system.train()
-                teacher.eval()
-
-            bd_rate = result['bd_rate_map_percent']
-            if not math.isfinite(bd_rate):
-                raise ValueError('Validation BD-rate-mAP is not finite')
-            validation_history.append({'epoch': epoch, **result})
-            (save_dir / f'{tag}_validation_history.json').write_text(
-                json.dumps(validation_history, indent=2), encoding='utf-8')
-            if bd_rate < best_bd_rate:
-                best_bd_rate = bd_rate
-                improved = True
 
         rng_states = gather_rng_states(device, world_size)
         if rank == 0:
             save_checkpoint(last_checkpoint, epoch, args.mode, system, optimizer,
                             training_history, validation_history, best_bd_rate,
                             rng_states, world_size, fixed_qp)
-            if improved:
-                shutil.copy2(last_checkpoint, best_checkpoint)
-                print(f'New best validation BD-rate-mAP: {best_bd_rate:.3f}%')
+            if validation_due:
+                save_evaluation_checkpoint(
+                    save_dir / f'video_{tag}_epoch_{epoch:04d}.pth',
+                    epoch, args.mode, system, fixed_qp)
         if world_size > 1:
             dist.barrier()
 
 
 def train(args):
     device, rank, world_size, local_rank = setup_distributed(args.device)
+    completed = False
     try:
         train_worker(args, device, rank, world_size, local_rank)
+        completed = True
     finally:
         if dist.is_initialized():
             dist.destroy_process_group()
+    if completed and rank == 0:
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        tag = 'variable_rate' if args.mode == 'variable' else f'fixed_qp{args.fixed_qp}'
+        select_best_checkpoint(args, tag, load_validation_config(args.validation_config))
 
 
 def parse_args():
@@ -451,7 +568,7 @@ def parse_args():
     parser.add_argument('--device', default='cuda')
     parser.add_argument('--seed', type=int, default=0)
     parser.add_argument('--validation_config',
-                        help='JSON config for periodic real-bitstream BD-rate-mAP validation')
+                        help='Required JSON config for post-DDP BD-rate-mAP best selection')
     parser.add_argument('--validation_interval', type=int, default=1)
     parser.add_argument('--resume', nargs='?', const='auto',
                         help='Resume at the next epoch; omit PATH to use this mode last checkpoint')
@@ -478,27 +595,49 @@ if __name__ == '__main__':
         assert distortion.item() == 2.0
         assert machine_rate_distortion_loss(
             [torch.tensor(1.0)], [distortion], 2.0).item() == 5.0
+        frozen_clone = torch.nn.Sequential(torch.nn.BatchNorm1d(1))
+        frozen_clone.requires_grad_(False)
+        frozen_system = MachineBaseSystem(torch.nn.Linear(1, 1), frozen_clone)
+        frozen_system.train()
+        assert not frozen_system.cloned_frontend.training
+        assert not any(parameter.requires_grad
+                       for parameter in frozen_system.cloned_frontend.parameters())
+        assert all(parameter.requires_grad
+                   for parameter in frozen_system.video_model.parameters())
         with TemporaryDirectory() as temporary_directory:
             directory = Path(temporary_directory)
             history = [{'epoch': 1, 'total_loss': 1.0, 'bpp': 0.5, 'feature_mse': 0.25}]
             system = torch.nn.Module()
             system.video_model = torch.nn.Linear(1, 1)
             system.cloned_frontend = torch.nn.Linear(1, 1)
-            optimizer = torch.optim.Adam(system.parameters())
+            system.cloned_frontend.requires_grad_(False)
+            optimizer = torch.optim.Adam(system.video_model.parameters())
             checkpoint_path = directory / 'last.pth.tar'
+            snapshot_path = directory / 'epoch_0001.pth'
+            best_path = directory / 'best.pth'
             save_training_outputs(history, directory / 'history.json', directory / 'curves.png')
             save_checkpoint(checkpoint_path, 1, 'variable', system, optimizer,
                             history, [], math.inf, [capture_rng_state(torch.device('cpu'))], 1)
+            save_evaluation_checkpoint(snapshot_path, 1, 'variable', system)
+            save_best_checkpoint(snapshot_path, best_path, {
+                'epoch': 1, 'selection_metric': 'map5095',
+                'bd_rate_map_percent': -1.0,
+            })
             resumed_system = torch.nn.Module()
             resumed_system.video_model = torch.nn.Linear(1, 1)
             resumed_system.cloned_frontend = torch.nn.Linear(1, 1)
-            resumed_optimizer = torch.optim.Adam(resumed_system.parameters())
+            resumed_system.cloned_frontend.requires_grad_(False)
+            resumed_optimizer = torch.optim.Adam(
+                resumed_system.video_model.parameters())
             checkpoint = resume_training(
                 checkpoint_path, 'variable', 42, resumed_system, resumed_optimizer, 1)
             assert checkpoint['epoch'] == 1
+            assert checkpoint['trainable_components'] == ['dcvc_rt_dmc']
+            assert torch.load(best_path, map_location='cpu', weights_only=True)[
+                'selected_by']['selection_metric'] == 'map5095'
             assert (directory / 'history.json').is_file()
             assert (directory / 'curves.png').is_file()
-        print('Variable-rate, checkpoint/resume and plot self-check passed')
+        print('Frozen-YOLO, checkpoint/best, resume and plot self-check passed')
     elif not arguments.dataset:
         raise ValueError('--dataset is required for training or --check_dataset')
     elif arguments.check_dataset:

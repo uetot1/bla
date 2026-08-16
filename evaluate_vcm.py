@@ -531,11 +531,11 @@ def evaluate_codec(args: argparse.Namespace) -> None:
         machine_frontend = {
             "type": "checkpoint_cloned_yolov5_frontend",
             "weights_id": state_dict_sha256(cloned_frontend_state),
-            "trainable_during_codec_training": bool(
-                checkpoint.get("optimizer_config", {}).get(
-                    "train_cloned_frontend",
-                    True,
-                )
+            "trainable_during_codec_training": (
+                "yolo_cloned_frontend" in checkpoint.get("trainable_components", ())
+                if checkpoint.get("trainable_components") is not None
+                else bool(checkpoint.get("optimizer_config", {}).get(
+                    "train_cloned_frontend", True))
             ),
             "last_frontend_layer": last_frontend_layer,
             "feature_layer_indices": list(
@@ -551,7 +551,7 @@ def evaluate_codec(args: argparse.Namespace) -> None:
             ),
         }
         print(
-            "Evaluation detector uses the trained cloned YOLO front end "
+            "Evaluation detector uses the checkpoint cloned YOLO front end "
             f"(layers 0..{last_frontend_layer}) and frozen task back end."
         )
     else:

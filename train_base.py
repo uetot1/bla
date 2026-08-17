@@ -26,8 +26,11 @@ from svc_machine.feature_loss import feature_mse_loss, machine_rate_distortion_l
 from svc_machine.system import MachineBaseSystem
 
 
-LAMBDA_MIN = 2.0
-LAMBDA_MAX = 16.0
+LAMBDA_MIN = 4.0
+LAMBDA_MAX = 32.0
+QP_FOCUS_MIN = 16
+QP_FOCUS_MAX = 47
+QP_FOCUS_PROBABILITY = 0.6
 INDEX_MAP = (0, 1, 0, 2, 0, 2, 0, 2)
 VALIDATION_QPS = (0, 21, 42, 63)
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -76,7 +79,12 @@ def restore_rng_state(states, rank, device):
 
 
 def synchronized_qp(mode, fixed_qp, device, rank, world_size):
-    qp = random.randint(0, DMCI.get_qp_num() - 1) if mode == 'variable' else fixed_qp
+    if mode == 'variable':
+        qp = random.randint(QP_FOCUS_MIN, QP_FOCUS_MAX) \
+            if random.random() < QP_FOCUS_PROBABILITY \
+            else random.randint(0, DMCI.get_qp_num() - 1)
+    else:
+        qp = fixed_qp
     if world_size > 1:
         value = torch.tensor(qp if rank == 0 else 0, device=device)
         dist.broadcast(value, 0)
@@ -164,12 +172,18 @@ def save_checkpoint(path, epoch, mode, system, optimizer, training_history,
                     fixed_qp=None):
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary_path = path.with_suffix(path.suffix + '.tmp')
-    metadata = {'epoch': epoch, 'mode': mode, 'lambda_range': (LAMBDA_MIN, LAMBDA_MAX)}
+    metadata = {
+        'epoch': epoch,
+        'mode': mode,
+        'lambda_range': (LAMBDA_MIN, LAMBDA_MAX),
+        'qp_sampling': ('mid_focus_mixture', QP_FOCUS_PROBABILITY,
+                        QP_FOCUS_MIN, QP_FOCUS_MAX),
+    }
     if fixed_qp is not None:
         metadata.update({'fixed_qp': fixed_qp, 'fixed_lambda': lambda_for_qp(fixed_qp)})
     torch.save({
         **metadata,
-        'schema_version': 3,
+        'schema_version': 4,
         'state_dict': system.video_model.state_dict(),
         'cloned_frontend_state_dict': system.cloned_frontend.state_dict(),
         'trainable_components': ['dcvc_rt_dmc'],
@@ -187,19 +201,23 @@ def save_checkpoint(path, epoch, mode, system, optimizer, training_history,
 def resume_training(path, mode, fixed_qp, system, optimizer, world_size):
     checkpoint = torch.load(path, map_location='cpu', weights_only=True)
     required = {
-        'schema_version', 'epoch', 'mode', 'lambda_range', 'state_dict',
+        'schema_version', 'epoch', 'mode', 'lambda_range', 'qp_sampling', 'state_dict',
         'cloned_frontend_state_dict',
         'optimizer', 'rng_states', 'world_size',
     }
     missing = sorted(required - checkpoint.keys())
     if missing:
         raise ValueError(f'Resume checkpoint is missing: {", ".join(missing)}')
-    if checkpoint['schema_version'] != 3:
+    if checkpoint['schema_version'] != 4:
         raise ValueError('Unsupported resume checkpoint schema')
     if checkpoint['mode'] != mode:
         raise ValueError(f'Resume checkpoint mode is {checkpoint["mode"]}, not {mode}')
     if tuple(checkpoint['lambda_range']) != (LAMBDA_MIN, LAMBDA_MAX):
         raise ValueError('Resume checkpoint uses a different lambda range')
+    if tuple(checkpoint['qp_sampling']) != (
+            'mid_focus_mixture', QP_FOCUS_PROBABILITY,
+            QP_FOCUS_MIN, QP_FOCUS_MAX):
+        raise ValueError('Resume checkpoint uses a different QP sampling strategy')
     if mode == 'fixed' and checkpoint.get('fixed_qp') != fixed_qp:
         raise ValueError('Resume checkpoint uses a different fixed QP')
     if checkpoint['world_size'] != world_size:
@@ -213,12 +231,18 @@ def resume_training(path, mode, fixed_qp, system, optimizer, world_size):
 def save_evaluation_checkpoint(path, epoch, mode, system, fixed_qp=None):
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary_path = path.with_suffix(path.suffix + '.tmp')
-    metadata = {'epoch': epoch, 'mode': mode, 'lambda_range': (LAMBDA_MIN, LAMBDA_MAX)}
+    metadata = {
+        'epoch': epoch,
+        'mode': mode,
+        'lambda_range': (LAMBDA_MIN, LAMBDA_MAX),
+        'qp_sampling': ('mid_focus_mixture', QP_FOCUS_PROBABILITY,
+                        QP_FOCUS_MIN, QP_FOCUS_MAX),
+    }
     if fixed_qp is not None:
         metadata.update({'fixed_qp': fixed_qp, 'fixed_lambda': lambda_for_qp(fixed_qp)})
     torch.save({
         **metadata,
-        'schema_version': 3,
+        'schema_version': 4,
         'state_dict': system.video_model.state_dict(),
         'cloned_frontend_state_dict': system.cloned_frontend.state_dict(),
         'trainable_components': ['dcvc_rt_dmc'],
@@ -617,7 +641,7 @@ def parse_args():
     parser.add_argument('--dataset', help='Vimeo-90K Septuplet root')
     parser.add_argument('--mode', choices=('variable', 'fixed'), default='variable')
     parser.add_argument('--fixed_qp', type=int, default=42,
-                        help='Base QP for fixed-rate baseline (default: 42, lambda=8)')
+                        help='Base QP for fixed-rate baseline (default: 42, lambda=16)')
     parser.add_argument('--model_path_i', default='./checkpoints/dcvc_rt/cvpr2025_image.pth.tar')
     parser.add_argument('--model_path_p', default='./checkpoints/dcvc_rt/cvpr2025_video.pth.tar')
     parser.add_argument('--weights', default='./yolov5s.pt')
@@ -650,9 +674,20 @@ if __name__ == '__main__':
     if arguments.self_check:
         from tempfile import TemporaryDirectory
 
-        expected = {0: 2.0, 21: 4.0, 42: 8.0, 63: 16.0}
+        expected = {0: 4.0, 21: 8.0, 42: 16.0, 63: 32.0}
         assert all(abs(lambda_for_qp(qp) - value) < 1e-9
                    for qp, value in expected.items())
+        random_state = random.getstate()
+        random.seed(0)
+        sampled_qps = [
+            synchronized_qp('variable', 42, torch.device('cpu'), 0, 1)
+            for _ in range(4096)
+        ]
+        random.setstate(random_state)
+        focused_share = sum(
+            QP_FOCUS_MIN <= qp <= QP_FOCUS_MAX for qp in sampled_qps
+        ) / len(sampled_qps)
+        assert 0.75 < focused_share < 0.85
         qp_shift = (0, 8, 4)
         assert [qp_shift[INDEX_MAP[index]] for index in range(5)] == [0, 8, 0, 4, 0]
         target = torch.tensor([0.0, 1.0, 2.0])

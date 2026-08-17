@@ -66,13 +66,13 @@ vimeo_septuplet/
   sequences/00001/0001/im1.png ... im7.png
 ```
 
-The default trains one variable-rate model. Every batch samples one integer base QP uniformly from `0..63` and interpolates the machine-task weight in log space:
+The current mid-rate experiment trains one variable-rate model. For each batch, QP is sampled from `16..47` with probability `0.6`, otherwise uniformly from `0..63`. This gives the weak QP 21/42 region about four times the sampling density of the extremes while retaining both endpoints. The machine-task weight is interpolated in log space:
 
 ```text
-lambda_task(qp) = 2 * 8^(qp / 63)
+lambda_task(qp) = 4 * 8^(qp / 63)
 
 QP       0    21    42    63
-lambda   2     4     8    16
+lambda   4     8    16    32
 ```
 
 For the five-frame group, the DCVC-RT hierarchical offsets are `[0,8,0,4,0]`. Frame 0 initializes the DPB through frozen DMCI; only frames 1 through 4 contribute to the loss:
@@ -132,11 +132,11 @@ python train_base.py \
 
 Use `--resume /path/to/checkpoint.pth.tar` for an explicit checkpoint. The checkpoint restores DMC, the frozen cloned front-end, DMC-only Adam, Python/Torch/CUDA RNG state, histories, and the next epoch. DDP resume requires the same process count. An interruption inside an epoch repeats that incomplete epoch because checkpoints are committed only after complete epochs.
 
-Checkpoints from the earlier joint DMC/clone optimizer use schema 2 and cannot be resumed into this DMC-only optimizer; start this frozen-YOLO run from the DCVC-RT pretrained checkpoint.
+Checkpoints from the earlier optimizer or `lambda=2..16` experiment use schema 2/3 and cannot be resumed into this schema-4 experiment; start the new run from the DCVC-RT pretrained checkpoint.
 
 `--validation_config` is optional and HEVC never participates in optimization. Without it, training produces `last` and epoch candidates but no genuine BD-rate-selected `best.pth`. After creating the HEVC result, rerun the completed job with `--resume --validation_config ./validation_config.example.json`; no epoch is retrained and the saved candidates are evaluated. `--validation_interval 1` retains every epoch; a larger value retains only those intervals and the final epoch.
 
-Train the requested fixed-rate baseline with QP 42 and lambda 8 using the same validation data:
+Train the requested fixed-rate baseline with QP 42 and lambda 16 using the same validation data:
 
 ```bash
 python train_base.py \
@@ -188,7 +188,7 @@ The single variable-rate checkpoint, including its frozen cloned front-end, is r
 
 Use `--map_metric map50` when the anchor contains `map50`; the default is `map50_95`, corresponding to the average over IoU thresholds `0.50:0.05:0.95` defined by the CTC document.
 
-This is not identical to the other DCVC-RT repository: only its codec and reliability mechanisms are reused. The five-frame SVC feature objective, layer-4 teacher/clone supervision, Adam `1e-6`, 10-epoch schedule, and lambda range `2..16` remain project-specific. Because the codec backbone differs from the paper's original codec, its published numerical results are not expected to match exactly.
+This is not identical to the other DCVC-RT repository: only its codec and reliability mechanisms are reused. The five-frame SVC feature objective, layer-4 teacher/clone supervision, Adam `1e-6`, focused QP sampling and lambda range `4..32` remain project-specific. Because the codec backbone differs from the paper's original codec, its published numerical results are not expected to match exactly.
 
 ## HEVC x265 comparison using the reference evaluator
 

@@ -18,8 +18,7 @@ def make_yolo_teacher_and_clone(weights, device):
 
     clone = copy.deepcopy(teacher.model[:FRONTEND_LAST_LAYER + 1]).to(device)
     for parameter in clone.parameters():
-        parameter.requires_grad_(False)
-    clone.eval()
+        parameter.requires_grad_(True)
     return teacher, clone
 
 

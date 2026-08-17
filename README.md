@@ -13,7 +13,7 @@ The enhancement layer and the PSNR, SSIM, MS-SSIM and reconstruction-MSE evaluat
 
 - `DMCI` with `cvpr2025_image.pth.tar` encodes each GOP's I-frame.
 - `DMC` with `cvpr2025_video.pth.tar` encodes the following P-frames.
-- `yolov5s.pt` supplies the frozen teacher and initializes the also-frozen cloned front-end (layers `0..4`). Its back-end (layers `5..23`) stays frozen for detection evaluation.
+- `yolov5s.pt` supplies the frozen teacher and initializes the trainable cloned front-end (layers `0..4`). Its back-end (layers `5..23`) stays frozen for detection evaluation.
 
 The official DCVC-RT source is vendored under `dcvc_rt/` and pinned in `dcvc_rt/UPSTREAM.md` with its license and notice.
 
@@ -66,13 +66,13 @@ vimeo_septuplet/
   sequences/00001/0001/im1.png ... im7.png
 ```
 
-The current mid-rate experiment trains one variable-rate model. For each batch, QP is sampled from `16..47` with probability `0.6`, otherwise uniformly from `0..63`. This gives the weak QP 21/42 region about four times the sampling density of the extremes while retaining both endpoints. The machine-task weight is interpolated in log space:
+The paper-aligned setup trains one variable-rate model. Each batch samples one integer base QP uniformly from `0..63`; the four canonical operating points reproduce the paper's base-layer task weights through log-space interpolation:
 
 ```text
-lambda_task(qp) = 4 * 8^(qp / 63)
+lambda_task(qp) = 2 * 8^(qp / 63)
 
 QP       0    21    42    63
-lambda   4     8    16    32
+lambda   2     4     8    16
 ```
 
 For the five-frame group, the DCVC-RT hierarchical offsets are `[0,8,0,4,0]`. Frame 0 initializes the DPB through frozen DMCI; only frames 1 through 4 contribute to the loss:
@@ -81,7 +81,7 @@ For the five-frame group, the DCVC-RT hierarchical offsets are `[0,8,0,4,0]`. Fr
 L = mean_t(rate_P(t) + lambda_task(qp) * MSE(F4(x_t), Fclone4(xhat_t)))
 ```
 
-There is no I-frame loss, pixel MSE, detection loss, PSNR, MS-SSIM, enhancement-layer loss, or label requirement during training. Adam optimizes only `DMC`; DMCI, the original YOLO teacher, the cloned YOLO front-end `0..4`, and YOLO back-end `5..23` are all frozen. Gradients still pass through the frozen clone to the reconstructed frame and DMC. The defaults retain the SVC protocol: random `256x256` crop, five consecutive frames, global batch size 4, Adam at `1e-6`, and 10 epochs. Gradients are clipped to norm `1.0` by default.
+There is no I-frame loss, pixel MSE, detection loss, PSNR, MS-SSIM, enhancement-layer loss, or label requirement during training. Adam jointly optimizes `DMC` and cloned YOLO layers `0..4`; DMCI, the original YOLO teacher and YOLO backend `5..23` remain frozen. The defaults retain the SVC protocol: random `256x256` crop, five consecutive frames, global batch size 4, Adam at `1e-6`, and 10 epochs. Gradients are clipped to norm `1.0` by default.
 
 First check the interpolation and dataset:
 
@@ -130,13 +130,13 @@ python train_base.py \
   --resume
 ```
 
-Use `--resume /path/to/checkpoint.pth.tar` for an explicit checkpoint. The checkpoint restores DMC, the frozen cloned front-end, DMC-only Adam, Python/Torch/CUDA RNG state, histories, and the next epoch. DDP resume requires the same process count. An interruption inside an epoch repeats that incomplete epoch because checkpoints are committed only after complete epochs.
+Use `--resume /path/to/checkpoint.pth.tar` for an explicit checkpoint. The checkpoint restores DMC, the trainable cloned front-end, joint Adam, Python/Torch/CUDA RNG state, histories, and the next epoch. DDP resume requires the same process count. An interruption inside an epoch repeats that incomplete epoch because checkpoints are committed only after complete epochs.
 
-Checkpoints from the earlier optimizer or `lambda=2..16` experiment use schema 2/3 and cannot be resumed into this schema-4 experiment; start the new run from the DCVC-RT pretrained checkpoint.
+Frozen-clone and focused-QP checkpoints use older schemas and cannot be resumed into this schema-5 joint optimizer; start the new run from the DCVC-RT and YOLO pretrained checkpoints.
 
 `--validation_config` is optional and HEVC never participates in optimization. Without it, training produces `last` and epoch candidates but no genuine BD-rate-selected `best.pth`. After creating the HEVC result, rerun the completed job with `--resume --validation_config ./validation_config.example.json`; no epoch is retrained and the saved candidates are evaluated. `--validation_interval 1` retains every epoch; a larger value retains only those intervals and the final epoch.
 
-Train the requested fixed-rate baseline with QP 42 and lambda 16 using the same validation data:
+Train the requested fixed-rate baseline with QP 42 and lambda 8 using the same validation data:
 
 ```bash
 python train_base.py \
@@ -184,11 +184,11 @@ python test_base.py \
   --anchor_path ./anchors/ParkScene.json
 ```
 
-The single variable-rate checkpoint, including its frozen cloned front-end, is reused at all four QPs. Its cloned layers `0..4` replace the detector's original front-end while frozen layers `5..23` produce detections. Reconstructed PNG files and the actual DCVC-RT `.bin` stream are written under `out/ParkScene/qp_<QP>/`. Bitrate is measured from that stream's file size. The evaluator requires exactly QPs `0,21,42,63`, four finite positive-rate Pareto points, a common front-end policy, and overlapping anchor/proposal mAP ranges. The proposal curve and `bd_rate_map_percent` are written to `machine_metrics.json`; a negative value means bitrate saving over the anchor at equal mAP.
+The single variable-rate checkpoint, including its trained cloned front-end, is reused at all four QPs. Its cloned layers `0..4` replace the detector's original front-end while frozen layers `5..23` produce detections. Reconstructed PNG files and the actual DCVC-RT `.bin` stream are written under `out/ParkScene/qp_<QP>/`. Bitrate is measured from that stream's file size. The evaluator requires exactly QPs `0,21,42,63`, four finite positive-rate Pareto points, a common front-end policy, and overlapping anchor/proposal mAP ranges. The proposal curve and `bd_rate_map_percent` are written to `machine_metrics.json`; a negative value means bitrate saving over the anchor at equal mAP.
 
 Use `--map_metric map50` when the anchor contains `map50`; the default is `map50_95`, corresponding to the average over IoU thresholds `0.50:0.05:0.95` defined by the CTC document.
 
-This is not identical to the other DCVC-RT repository: only its codec and reliability mechanisms are reused. The five-frame SVC feature objective, layer-4 teacher/clone supervision, Adam `1e-6`, focused QP sampling and lambda range `4..32` remain project-specific. Because the codec backbone differs from the paper's original codec, its published numerical results are not expected to match exactly.
+This is not identical to the other DCVC-RT repository: only its codec and reliability mechanisms are reused. The five-frame SVC feature objective, joint DMC/clone optimization, Adam `1e-6`, uniform QP sampling and lambda range `2..16` remain project-specific. Because the codec backbone differs from the paper's original codec, its published numerical results are not expected to match exactly.
 
 ## HEVC x265 comparison using the reference evaluator
 

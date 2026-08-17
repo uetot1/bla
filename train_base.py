@@ -30,6 +30,7 @@ LAMBDA_MIN = 2.0
 LAMBDA_MAX = 16.0
 INDEX_MAP = (0, 1, 0, 2, 0, 2, 0, 2)
 VALIDATION_QPS = (0, 21, 42, 63)
+PAPER_LAMBDA_TO_QP = {2: 0, 4: 21, 8: 42, 16: 63}
 PROJECT_ROOT = Path(__file__).resolve().parent
 
 
@@ -91,6 +92,16 @@ def lambda_for_qp(qp):
     return math.exp(math.log(LAMBDA_MIN) + position * math.log(LAMBDA_MAX / LAMBDA_MIN))
 
 
+def qp_schedule(mode, fixed_qp):
+    return ('fixed', fixed_qp) if mode == 'fixed' \
+        else ('uniform', 0, DMCI.get_qp_num() - 1)
+
+
+def training_tag(mode, fixed_qp):
+    return 'variable_rate' if mode == 'variable' \
+        else f'lambda{lambda_for_qp(fixed_qp):g}_qp{fixed_qp}'
+
+
 class VimeoSeptuplet(Dataset):
     def __init__(self, root, crop_size=256, group_size=5,
                  list_name='sep_trainlist.txt', random_crop=True):
@@ -111,10 +122,11 @@ class VimeoSeptuplet(Dataset):
         return len(self.sequences)
 
     def __getitem__(self, index):
-        start = random.randint(1, 8 - self.group_size) if self.random_crop else 1
+        frame_count = self.group_size + 1
+        start = random.randint(1, 8 - frame_count) if self.random_crop else 1
         folder = self.sequence_root / self.sequences[index]
         frames = []
-        for frame_index in range(start, start + self.group_size):
+        for frame_index in range(start, start + frame_count):
             path = folder / f'im{frame_index}.png'
             with Image.open(path) as image:
                 frames.append(to_tensor(image.convert('RGB')))
@@ -168,13 +180,14 @@ def save_checkpoint(path, epoch, mode, system, optimizer, training_history,
         'epoch': epoch,
         'mode': mode,
         'lambda_range': (LAMBDA_MIN, LAMBDA_MAX),
-        'qp_sampling': ('uniform', 0, DMCI.get_qp_num() - 1),
+        'qp_sampling': qp_schedule(mode, fixed_qp),
+        'hierarchical_qp': mode != 'fixed',
     }
     if fixed_qp is not None:
         metadata.update({'fixed_qp': fixed_qp, 'fixed_lambda': lambda_for_qp(fixed_qp)})
     torch.save({
         **metadata,
-        'schema_version': 5,
+        'schema_version': 6,
         'state_dict': system.video_model.state_dict(),
         'cloned_frontend_state_dict': system.cloned_frontend.state_dict(),
         'trainable_components': ['dcvc_rt_dmc', 'yolo_cloned_frontend'],
@@ -192,22 +205,24 @@ def save_checkpoint(path, epoch, mode, system, optimizer, training_history,
 def resume_training(path, mode, fixed_qp, system, optimizer, world_size):
     checkpoint = torch.load(path, map_location='cpu', weights_only=True)
     required = {
-        'schema_version', 'epoch', 'mode', 'lambda_range', 'qp_sampling', 'state_dict',
+        'schema_version', 'epoch', 'mode', 'lambda_range', 'qp_sampling',
+        'hierarchical_qp', 'state_dict',
         'cloned_frontend_state_dict',
         'optimizer', 'rng_states', 'world_size',
     }
     missing = sorted(required - checkpoint.keys())
     if missing:
         raise ValueError(f'Resume checkpoint is missing: {", ".join(missing)}')
-    if checkpoint['schema_version'] != 5:
+    if checkpoint['schema_version'] != 6:
         raise ValueError('Unsupported resume checkpoint schema')
     if checkpoint['mode'] != mode:
         raise ValueError(f'Resume checkpoint mode is {checkpoint["mode"]}, not {mode}')
     if tuple(checkpoint['lambda_range']) != (LAMBDA_MIN, LAMBDA_MAX):
         raise ValueError('Resume checkpoint uses a different lambda range')
-    if tuple(checkpoint['qp_sampling']) != (
-            'uniform', 0, DMCI.get_qp_num() - 1):
+    if tuple(checkpoint['qp_sampling']) != qp_schedule(mode, fixed_qp):
         raise ValueError('Resume checkpoint uses a different QP sampling strategy')
+    if checkpoint['hierarchical_qp'] != (mode != 'fixed'):
+        raise ValueError('Resume checkpoint uses a different frame-QP schedule')
     if mode == 'fixed' and checkpoint.get('fixed_qp') != fixed_qp:
         raise ValueError('Resume checkpoint uses a different fixed QP')
     if checkpoint['world_size'] != world_size:
@@ -225,13 +240,14 @@ def save_evaluation_checkpoint(path, epoch, mode, system, fixed_qp=None):
         'epoch': epoch,
         'mode': mode,
         'lambda_range': (LAMBDA_MIN, LAMBDA_MAX),
-        'qp_sampling': ('uniform', 0, DMCI.get_qp_num() - 1),
+        'qp_sampling': qp_schedule(mode, fixed_qp),
+        'hierarchical_qp': mode != 'fixed',
     }
     if fixed_qp is not None:
         metadata.update({'fixed_qp': fixed_qp, 'fixed_lambda': lambda_for_qp(fixed_qp)})
     torch.save({
         **metadata,
-        'schema_version': 5,
+        'schema_version': 6,
         'state_dict': system.video_model.state_dict(),
         'cloned_frontend_state_dict': system.cloned_frontend.state_dict(),
         'trainable_components': ['dcvc_rt_dmc', 'yolo_cloned_frontend'],
@@ -386,7 +402,8 @@ def select_best_checkpoint(args, tag, validation_config):
           f'{best["bd_rate_map_percent"]:.3f}% -> {best_path}')
 
 
-def forward_group(model, system, image_model, teacher, sequences, base_qp, group_size):
+def forward_group(model, system, image_model, teacher, sequences, base_qp,
+                  group_size, hierarchical_qp):
     lambda_task = lambda_for_qp(base_qp)
     system.video_model.clear_dpb()
     system.video_model.set_curr_poc(0)
@@ -404,24 +421,27 @@ def forward_group(model, system, image_model, teacher, sequences, base_qp, group
         extract_teacher_feature(teacher, rgb_frames[:, index])
         for index in range(rgb_frames.shape[1])
     ], dim=1)
-    qps = tuple(system.video_model.shift_qp(
-        base_qp, INDEX_MAP[frame_index % 8])
-        for frame_index in range(1, group_size))
+    qps = tuple(
+        system.video_model.shift_qp(base_qp, INDEX_MAP[frame_index % 8])
+        if hierarchical_qp else base_qp
+        for frame_index in range(1, group_size + 1))
     result = model(ycbcr_frames, target_features, qps, lambda_task)
     return result, lambda_task
 
 
 @torch.no_grad()
 def validate_training_epoch(model, system, image_model, teacher, loader,
-                            group_size, device, rank, world_size):
+                            group_size, mode, fixed_qp, device, rank, world_size):
     model.eval()
     totals = torch.zeros(4, device=device, dtype=torch.float64)
     progress = tqdm(loader, desc='validation', disable=rank != 0)
     for batch_index, sequences in enumerate(progress):
-        base_qp = VALIDATION_QPS[batch_index % len(VALIDATION_QPS)]
+        base_qp = fixed_qp if mode == 'fixed' \
+            else VALIDATION_QPS[batch_index % len(VALIDATION_QPS)]
         sequences = sequences.to(device, non_blocking=True)
         (loss, rate, task_loss), _ = forward_group(
-            model, system, image_model, teacher, sequences, base_qp, group_size)
+            model, system, image_model, teacher, sequences, base_qp,
+            group_size, mode != 'fixed')
         system.video_model.clear_dpb()
         totals += torch.tensor(
             [loss.item(), rate.item(), task_loss.item(), 1],
@@ -445,6 +465,10 @@ def train_worker(args, device, rank, world_size, local_rank):
         raise ValueError('validation_interval and grad_clip must be positive')
     if args.batch_size % world_size:
         raise ValueError('Global batch_size must be divisible by the distributed world size')
+    if args.mode == 'fixed' and args.validation_config:
+        raise ValueError(
+            'BD-rate selection requires the four fixed-lambda models together; '
+            'train each model without --validation_config')
     random.seed(args.seed + rank)
     torch.manual_seed(args.seed + rank)
     if device.type == 'cuda':
@@ -491,7 +515,7 @@ def train_worker(args, device, rank, world_size, local_rank):
     trainable_parameters = tuple(
         parameter for parameter in system.parameters() if parameter.requires_grad)
     optimizer = torch.optim.Adam(trainable_parameters, lr=args.learning_rate)
-    tag = 'variable_rate' if args.mode == 'variable' else f'fixed_qp{args.fixed_qp}'
+    tag = training_tag(args.mode, args.fixed_qp)
     save_dir = Path(args.save_dir)
     last_checkpoint = save_dir / f'video_{tag}_last.pth.tar'
     history_path = save_dir / f'{tag}_training_history.json'
@@ -541,7 +565,7 @@ def train_worker(args, device, rank, world_size, local_rank):
             optimizer.zero_grad(set_to_none=True)
             (loss, rate, task_loss), lambda_task = forward_group(
                 model, system, image_model, teacher, sequences,
-                base_qp, args.group_size)
+                base_qp, args.group_size, args.mode != 'fixed')
             loss.backward()
             grad_norm = torch.nn.utils.clip_grad_norm_(
                 trainable_parameters, args.grad_clip, error_if_nonfinite=True)
@@ -576,7 +600,8 @@ def train_worker(args, device, rank, world_size, local_rank):
         }
         record.update(validate_training_epoch(
             model, system, image_model, teacher, validation_loader,
-            args.group_size, device, rank, world_size))
+            args.group_size, args.mode, args.fixed_qp,
+            device, rank, world_size))
         training_history.append(record)
         improved_val_loss = record['val_total_loss'] < best_val_loss
         best_val_loss = min(best_val_loss, record['val_total_loss'])
@@ -619,14 +644,17 @@ def train(args):
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
-        tag = 'variable_rate' if args.mode == 'variable' else f'fixed_qp{args.fixed_qp}'
+        tag = training_tag(args.mode, args.fixed_qp)
         select_best_checkpoint(args, tag, load_validation_config(args.validation_config))
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='Train the variable-rate machine-task DMC')
+    parser = argparse.ArgumentParser(description='Train the DCVC-RT machine base layer')
     parser.add_argument('--dataset', help='Vimeo-90K Septuplet root')
-    parser.add_argument('--mode', choices=('variable', 'fixed'), default='variable')
+    parser.add_argument('--mode', choices=('variable', 'fixed'), default='fixed',
+                        help='fixed is paper-aligned; variable retains the legacy random-QP mode')
+    parser.add_argument('--paper_lambda', type=int, choices=tuple(PAPER_LAMBDA_TO_QP),
+                        help='Train one paper operating point; sets fixed QP and disables hierarchy')
     parser.add_argument('--fixed_qp', type=int, default=42,
                         help='Base QP for fixed-rate baseline (default: 42, lambda=8)')
     parser.add_argument('--model_path_i', default='./checkpoints/dcvc_rt/cvpr2025_image.pth.tar')
@@ -637,7 +665,8 @@ def parse_args():
     parser.add_argument('--learning_rate', type=float, default=1e-6)
     parser.add_argument('--grad_clip', type=float, default=1.0)
     parser.add_argument('--batch_size', type=int, default=4)
-    parser.add_argument('--group_size', type=int, choices=(5,), default=5)
+    parser.add_argument('--group_size', type=int, choices=(5,), default=5,
+                        help='Loss-bearing P-frames; one frozen-DMCI reference is loaded in addition')
     parser.add_argument('--crop_size', type=int, choices=(256,), default=256)
     parser.add_argument('--workers', type=int, default=4)
     parser.add_argument('--device', default='cuda')
@@ -650,7 +679,7 @@ def parse_args():
     parser.add_argument('--resume', nargs='?', const='auto',
                         help='Resume at the next epoch; omit PATH to use this mode last checkpoint')
     parser.add_argument('--check_dataset', action='store_true',
-                        help='Load one cropped five-frame group, report its shape, and exit')
+                        help='Load one reference plus five cropped P-frames and exit')
     parser.add_argument('--self_check', action='store_true',
                         help='Check QP/lambda interpolation and exit')
     return parser.parse_args()
@@ -658,12 +687,18 @@ def parse_args():
 
 if __name__ == '__main__':
     arguments = parse_args()
+    if arguments.paper_lambda is not None:
+        arguments.mode = 'fixed'
+        arguments.fixed_qp = PAPER_LAMBDA_TO_QP[arguments.paper_lambda]
     if arguments.self_check:
         from tempfile import TemporaryDirectory
 
         expected = {0: 2.0, 21: 4.0, 42: 8.0, 63: 16.0}
         assert all(abs(lambda_for_qp(qp) - value) < 1e-9
                    for qp, value in expected.items())
+        assert PAPER_LAMBDA_TO_QP == {2: 0, 4: 21, 8: 42, 16: 63}
+        assert qp_schedule('fixed', 42) == ('fixed', 42)
+        assert training_tag('fixed', 42) == 'lambda8_qp42'
         random_state = random.getstate()
         random.seed(0)
         sampled_qps = [
@@ -732,7 +767,7 @@ if __name__ == '__main__':
         raise ValueError('--dataset is required for training or --check_dataset')
     elif arguments.check_dataset:
         sample = VimeoSeptuplet(arguments.dataset, arguments.crop_size, arguments.group_size)[0]
-        assert sample.shape == (5, 3, 256, 256), sample.shape
+        assert sample.shape == (6, 3, 256, 256), sample.shape
         print(f'Dataset check passed: {tuple(sample.shape)}')
     else:
         train(arguments)

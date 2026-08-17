@@ -66,87 +66,92 @@ vimeo_septuplet/
   sequences/00001/0001/im1.png ... im7.png
 ```
 
-The paper-aligned setup trains one variable-rate model. Each batch samples one integer base QP uniformly from `0..63`; the four canonical operating points reproduce the paper's base-layer task weights through log-space interpolation:
+The paper protocol trains four separate base-layer models, one for each fixed
+`lambda_base`. Random QP, lambda interpolation and hierarchical QP offsets are
+disabled in this mode. DCVC-RT needs a QP index, so this project maps the four
+paper operating points to its four canonical pretrained-rate indices:
 
 ```text
-lambda_task(qp) = 2 * 8^(qp / 63)
-
 QP       0    21    42    63
 lambda   2     4     8    16
 ```
 
-For the five-frame group, the DCVC-RT hierarchical offsets are `[0,8,0,4,0]`. Frame 0 initializes the DPB through frozen DMCI; only frames 1 through 4 contribute to the loss:
+Each sample loads six consecutive Vimeo frames. The first frame initializes the
+DCVC-RT DPB through frozen pretrained DMCI and is outside the loss. The following
+five P-frames use the same fixed QP and form the paper's `N=5` sequence loss:
 
 ```text
-L = mean_t(rate_P(t) + lambda_task(qp) * MSE(F4(x_t), Fclone4(xhat_t)))
+L_base* = (1/5) * sum[t=1..5](R_DMC(t) + lambda_base * MSE(F4(x_t), Fclone4(xhat_t)))
 ```
 
-There is no I-frame loss, pixel MSE, detection loss, PSNR, MS-SSIM, enhancement-layer loss, or label requirement during training. Adam jointly optimizes `DMC` and cloned YOLO layers `0..4`; DMCI, the original YOLO teacher and YOLO backend `5..23` remain frozen. The defaults retain the SVC protocol: random `256x256` crop, five consecutive frames, global batch size 4, Adam at `1e-6`, and 10 epochs. Gradients are clipped to norm `1.0` by default.
+Adam jointly optimizes pretrained `DMC` and cloned YOLO layers `0..4`. Pretrained
+DMCI, the original YOLO teacher and YOLO backend `5..23` remain frozen. Defaults
+match the paper: random `256x256` crop, `N=5`, global batch size 4, Adam at
+`1e-6`, and 10 epochs. There is no pixel MSE, detection loss, PSNR, MS-SSIM or
+enhancement-layer loss. Gradient clipping and DDP/resume remain reliability
+features inherited from the current project.
 
-First check the interpolation and dataset:
+First check the schedule and dataset (`6` tensors = one reference + five P-frames):
 
 ```bash
 python train_base.py --self_check
 python train_base.py --dataset /path/to/vimeo_septuplet --check_dataset
 ```
 
-Train without an HEVC anchor:
+Train one model per paper lambda. Use a different output directory for every
+operating point:
 
 ```bash
-python train_base.py \
-  --dataset /path/to/vimeo_septuplet
+python train_base.py --dataset /path/to/vimeo_septuplet --paper_lambda 2  --save_dir checkpoints/paper_lambda2
+python train_base.py --dataset /path/to/vimeo_septuplet --paper_lambda 4  --save_dir checkpoints/paper_lambda4
+python train_base.py --dataset /path/to/vimeo_septuplet --paper_lambda 8  --save_dir checkpoints/paper_lambda8
+python train_base.py --dataset /path/to/vimeo_septuplet --paper_lambda 16 --save_dir checkpoints/paper_lambda16
 ```
 
 For DDP, keep `--batch_size 4` as the global batch size and choose a process count that divides four:
 
 ```bash
 torchrun --standalone --nproc_per_node=2 train_base.py \
-  --dataset /path/to/vimeo_septuplet
+  --dataset /path/to/vimeo_septuplet \
+  --paper_lambda 2 \
+  --save_dir checkpoints/paper_lambda2
 ```
 
-The trainer saves a lightweight candidate at each validation interval. If `--validation_config` is supplied, rank 0 evaluates those candidates after DDP training at QPs `0 21 42 63` using actual bitstreams, the same manifest/detector as the HEVC anchor, and selects the lowest BD-rate-mAP automatically:
+For the lambda-2 model the output names are:
 
 ```text
-checkpoints/base_task/video_variable_rate_last.pth.tar
-checkpoints/base_task/video_variable_rate_epoch_0001.pth
-checkpoints/base_task/best.pth
-checkpoints/base_task/best_validation.json
-checkpoints/base_task/variable_rate_training_history.json
-checkpoints/base_task/variable_rate_training_curves.png
-checkpoints/base_task/variable_rate_training_curves_epoch_0001.png
-checkpoints/base_task/variable_rate_validation_history.json
+checkpoints/paper_lambda2/video_lambda2_qp0_last.pth.tar
+checkpoints/paper_lambda2/video_lambda2_qp0_epoch_0001.pth
+checkpoints/paper_lambda2/best_val_loss.pth
+checkpoints/paper_lambda2/lambda2_qp0_training_history.json
+checkpoints/paper_lambda2/lambda2_qp0_training_curves.png
+checkpoints/paper_lambda2/lambda2_qp0_training_curves_epoch_0001.png
 ```
 
-`variable_rate_training_curves.png` contains separate Total Loss, BPP and Feature MSE plots. The JSON/latest plot are refreshed after every completed epoch, and an epoch-numbered plot is retained for every epoch. `best.pth` records the selected epoch and both BD-rate-mAP50 and BD-rate-mAP50:95 results.
+The history and Total Loss/BPP/Feature MSE chart are refreshed after every epoch;
+an epoch-numbered chart is also retained. Every epoch evaluates the deterministic
+centre crop from `sep_testlist.txt` at that model's fixed QP. The lowest held-out
+loss is saved as `best_val_loss.pth`.
 
-Every epoch also evaluates `sep_testlist.txt` with frames `im1..im5`, a deterministic centre crop and QPs cycling through `0,21,42,63`. Each chart contains `train` and `validation` lines, and the lowest held-out total loss is saved as `best_val_loss.pth`. This checkpoint is an overfitting monitor; `best.pth` remains reserved for the later BD-rate-mAP selection.
-
-If training is interrupted, continue from the next epoch stored in the default `last` checkpoint. `--epochs` is the final total, not the number of additional epochs:
+If training is interrupted, resume the same lambda and output directory.
+`--epochs` is the final total, not the number of additional epochs:
 
 ```bash
 python train_base.py \
   --dataset /path/to/vimeo_septuplet \
+  --paper_lambda 2 \
+  --save_dir checkpoints/paper_lambda2 \
   --epochs 10 \
   --resume
 ```
 
 Use `--resume /path/to/checkpoint.pth.tar` for an explicit checkpoint. The checkpoint restores DMC, the trainable cloned front-end, joint Adam, Python/Torch/CUDA RNG state, histories, and the next epoch. DDP resume requires the same process count. An interruption inside an epoch repeats that incomplete epoch because checkpoints are committed only after complete epochs.
 
-Frozen-clone and focused-QP checkpoints use older schemas and cannot be resumed into this schema-5 joint optimizer; start the new run from the DCVC-RT and YOLO pretrained checkpoints.
-
-`--validation_config` is optional and HEVC never participates in optimization. Without it, training produces `last` and epoch candidates but no genuine BD-rate-selected `best.pth`. After creating the HEVC result, rerun the completed job with `--resume --validation_config ./validation_config.example.json`; no epoch is retrained and the saved candidates are evaluated. `--validation_interval 1` retains every epoch; a larger value retains only those intervals and the final epoch.
-
-Train the requested fixed-rate baseline with QP 42 and lambda 8 using the same validation data:
-
-```bash
-python train_base.py \
-  --dataset /path/to/vimeo_septuplet \
-  --mode fixed \
-  --fixed_qp 42 \
-  --validation_config ./validation_config.example.json
-```
-
-Its outputs use the same naming pattern with the `fixed_qp42` tag. Compare its QP-42 point with the variable-rate model's QP-42 point in the two validation histories.
+Older checkpoints cannot resume into schema 6 because the frame/QP schedule and
+optimizer state differ. Start these four runs from the supplied pretrained
+DCVC-RT and YOLO checkpoints. `--validation_config` is deliberately rejected in
+paper mode: BD-rate selection must combine the four separately trained models,
+not evaluate one fixed-rate model at four QPs.
 
 ## VTM anchor input
 
@@ -173,7 +178,11 @@ Input images and YOLO labels must have matching names such as `Parkscene_000.png
 python test_base.py \
   --qps 0 21 42 63 \
   --model_path_i ./checkpoints/dcvc_rt/cvpr2025_image.pth.tar \
-  --model_path_p ./checkpoints/base_task/best.pth \
+  --model_path_p \
+    ./checkpoints/paper_lambda2/best_val_loss.pth \
+    ./checkpoints/paper_lambda4/best_val_loss.pth \
+    ./checkpoints/paper_lambda8/best_val_loss.pth \
+    ./checkpoints/paper_lambda16/best_val_loss.pth \
   --inp_path ./input/ParkScene \
   --labels_path ./labels/ParkScene \
   --out_path ./out/ParkScene \
@@ -184,11 +193,20 @@ python test_base.py \
   --anchor_path ./anchors/ParkScene.json
 ```
 
-The single variable-rate checkpoint, including its trained cloned front-end, is reused at all four QPs. Its cloned layers `0..4` replace the detector's original front-end while frozen layers `5..23` produce detections. Reconstructed PNG files and the actual DCVC-RT `.bin` stream are written under `out/ParkScene/qp_<QP>/`. Bitrate is measured from that stream's file size. The evaluator requires exactly QPs `0,21,42,63`, four finite positive-rate Pareto points, a common front-end policy, and overlapping anchor/proposal mAP ranges. The proposal curve and `bd_rate_map_percent` are written to `machine_metrics.json`; a negative value means bitrate saving over the anchor at equal mAP.
+The four checkpoint paths correspond positionally to QPs `0,21,42,63`. Each
+checkpoint supplies its own trained DMC and cloned front-end; frozen YOLO layers
+`5..23` produce detections. Reconstructed PNG files and actual DCVC-RT `.bin`
+streams are written under `out/ParkScene/qp_<QP>/`. The proposal curve and
+`bd_rate_map_percent` are written to `machine_metrics.json`; a negative value
+means bitrate saving over the anchor at equal mAP.
 
 Use `--map_metric map50` when the anchor contains `map50`; the default is `map50_95`, corresponding to the average over IoU thresholds `0.50:0.05:0.95` defined by the CTC document.
 
-This is not identical to the other DCVC-RT repository: only its codec and reliability mechanisms are reused. The five-frame SVC feature objective, joint DMC/clone optimization, Adam `1e-6`, uniform QP sampling and lambda range `2..16` remain project-specific. Because the codec backbone differs from the paper's original codec, its published numerical results are not expected to match exactly.
+This reproduces the paper's base-layer training schedule while retaining the
+requested DCVC-RT core and pretrained weights. It cannot reproduce the paper's
+published numbers exactly because the original paper uses LCCM-VC/CANF-VC, not
+DCVC-RT; the lambda-to-QP mapping and frozen DMCI reference are the necessary
+codec adaptation.
 
 ## HEVC x265 comparison using the reference evaluator
 
@@ -214,8 +232,9 @@ python evaluate_hevc.py \
   --keep-progress-checkpoint
 ```
 
-Evaluate the trained SVC/DCVC-RT base checkpoint with the identical manifest
-and detector:
+The command below is retained only for the optional legacy single-checkpoint
+variable-rate mode. Paper-mode evaluation uses the four-checkpoint `test_base.py`
+command above so each rate point uses the model trained for its lambda:
 
 ```bash
 python evaluate_vcm.py --mode codec \

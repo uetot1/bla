@@ -128,6 +128,7 @@ def encode_sequence(
     output_path: Path,
     device: torch.device,
     reset_interval: int,
+    hierarchical_qp: bool = True,
 ) -> list[float]:
     """Encode one DMCI I-frame and every following DMC P-frame."""
     two_entropy_coders = use_two_entropy_coders(sequence.width, sequence.height)
@@ -162,7 +163,7 @@ def encode_sequence(
             )
             if reset_interval > 0 and frame_index % reset_interval == 1:
                 model.prepare_feature_adaptor_i(last_qp)
-            qp = coding_qp(base_qp, frame_index)
+            qp = coding_qp(base_qp, frame_index) if hierarchical_qp else base_qp
             encoded = model.compress(rgb2ycbcr(frame_rgb), qp)
             writer.write_frame(qp, encoded["bit_stream"])
             estimated_entropy_bits.append(float(
@@ -463,13 +464,19 @@ def evaluate_codec(args: argparse.Namespace) -> None:
             f"first: {short_sequences[0]}"
         )
 
+    video_paths = [Path(path) for path in args.video_ckpt]
+    if len(video_paths) == 1:
+        video_paths *= len(args.qps)
+    elif len(video_paths) != len(args.qps):
+        raise ValueError("--video-ckpt requires one path or one path per QP")
+    missing_paths = [str(path) for path in video_paths if not path.is_file()]
+    if missing_paths:
+        raise FileNotFoundError(f"Video checkpoint not found: {missing_paths[0]}")
+
     image_model = DMCI().to(device).eval()
     load_codec_checkpoint(image_model, args.image_ckpt, state_key="dmci_state_dict")
-    model = DMC().to(device).eval()
-    checkpoint = load_codec_checkpoint(model, args.video_ckpt)
     try:
         image_model.update(force_zero_thres=args.force_zero_thres)
-        model.update(force_zero_thres=args.force_zero_thres)
     except ImportError as error:
         raise RuntimeError(
             "Actual bitstream evaluation requires the MLCodec_extensions_cpp "
@@ -477,7 +484,6 @@ def evaluate_codec(args: argparse.Namespace) -> None:
         ) from error
     if args.codec_precision == "fp16":
         image_model.half()
-        model.half()
 
     detector = load_yolov5(
         args.task_model,
@@ -492,86 +498,9 @@ def evaluate_codec(args: argparse.Namespace) -> None:
         args.max_detections,
         args.yolov5_weights,
     )
-    feature_objective = checkpoint.get("feature_objective", {})
-    cloned_frontend_state = checkpoint.get("cloned_frontend_state_dict")
-    if cloned_frontend_state is not None:
-        trained_task_model = feature_objective.get("task_model")
-        if trained_task_model is not None and trained_task_model != args.task_model:
-            raise ValueError(
-                "Checkpoint cloned front end was trained for "
-                f"{trained_task_model}, not --task-model {args.task_model}"
-            )
-        trained_backend_weights = checkpoint.get("source_checkpoints", {}).get(
-            "yolov5_weights_sha256"
-        )
-        if (
-            trained_backend_weights is not None
-            and trained_backend_weights != detector_metadata["weights_id"]
-        ):
-            raise ValueError(
-                "Evaluation must use the same frozen YOLOv5 weights as training: "
-                f"checkpoint={trained_backend_weights}, "
-                f"evaluation={detector_metadata['weights_id']}"
-            )
-        last_frontend_layer = feature_objective.get(
-            "cloned_frontend_last_layer"
-        )
-        if last_frontend_layer is None:
-            last_frontend_layer = feature_objective.get("last_backbone_layer")
-        if last_frontend_layer is None:
-            last_frontend_layer = max(
-                int(key.split(".", 1)[0]) for key in cloned_frontend_state
-            )
-        last_frontend_layer = int(last_frontend_layer)
-        install_cloned_frontend(
-            detector,
-            cloned_frontend_state,
-            last_frontend_layer,
-        )
-        machine_frontend = {
-            "type": "checkpoint_cloned_yolov5_frontend",
-            "weights_id": state_dict_sha256(cloned_frontend_state),
-            "trainable_during_codec_training": (
-                "yolo_cloned_frontend" in checkpoint.get("trainable_components", ())
-                if checkpoint.get("trainable_components") is not None
-                else bool(checkpoint.get("optimizer_config", {}).get(
-                    "train_cloned_frontend", True))
-            ),
-            "last_frontend_layer": last_frontend_layer,
-            "feature_layer_indices": list(
-                feature_objective.get("layer_indices", (4,))
-            ),
-            "normalized_layer_weights": feature_objective.get(
-                "normalized_layer_weights"
-            ),
-            "task_backend": "frozen_pretrained_yolov5",
-            "task_backend_weights_id": detector_metadata["weights_id"],
-            "feature_topology": feature_objective.get(
-                "topology", "SVC cloned YOLOv5 layers 0..4 with layer-4 supervision"
-            ),
-        }
-        print(
-            "Evaluation detector uses the checkpoint cloned YOLO front end "
-            f"(layers 0..{last_frontend_layer}) and frozen task back end."
-        )
-    else:
-        machine_frontend = {
-            "type": "pretrained_yolov5_frontend",
-            "weights_id": detector_metadata["weights_id"],
-            "trainable_during_codec_training": False,
-            "task_backend": "frozen_pretrained_yolov5",
-            "task_backend_weights_id": detector_metadata["weights_id"],
-            "checkpoint_without_clone": True,
-            "evaluation_role": "pretrained_frontend_anchor",
-        }
-        print(
-            "Checkpoint has no cloned YOLO front end; evaluation falls back "
-            "to the pretrained detector (anchor/frozen-feature protocol)."
-        )
     detector = detector.to(device).eval()
     for parameter in detector.parameters():
         parameter.requires_grad_(False)
-    del checkpoint, cloned_frontend_state
     detector.conf = args.confidence_threshold
     detector.iou = args.nms_iou_threshold
     detector.max_det = args.max_detections
@@ -585,7 +514,88 @@ def evaluate_codec(args: argparse.Namespace) -> None:
     )
 
     points = []
-    for base_qp in args.qps:
+    frontends = {}
+    clone_policy = None
+    qp_schedule_policy = None
+    for base_qp, video_path in zip(args.qps, video_paths):
+        model = DMC().to(device).eval()
+        checkpoint = load_codec_checkpoint(model, video_path)
+        if (checkpoint.get("fixed_qp") is not None and
+                int(checkpoint["fixed_qp"]) != base_qp):
+            raise ValueError(
+                f"{video_path} was trained for QP {checkpoint['fixed_qp']}, "
+                f"not QP {base_qp}"
+            )
+        try:
+            model.update(force_zero_thres=args.force_zero_thres)
+        except ImportError as error:
+            raise RuntimeError(
+                "Actual bitstream evaluation requires the MLCodec_extensions_cpp "
+                "entropy-coder extension. Build src/cpp first."
+            ) from error
+        if args.codec_precision == "fp16":
+            model.half()
+
+        feature_objective = checkpoint.get("feature_objective", {})
+        hierarchical_qp = bool(checkpoint.get("hierarchical_qp", True))
+        if (qp_schedule_policy is not None and
+                hierarchical_qp != qp_schedule_policy):
+            raise ValueError("All rate points must use the same frame-QP schedule")
+        qp_schedule_policy = hierarchical_qp
+        cloned_frontend_state = checkpoint.get("cloned_frontend_state_dict")
+        has_clone = cloned_frontend_state is not None
+        if clone_policy is not None and has_clone != clone_policy:
+            raise ValueError("All rate points must use the same cloned front-end policy")
+        clone_policy = has_clone
+        if has_clone:
+            trained_task_model = feature_objective.get("task_model")
+            if trained_task_model is not None and trained_task_model != args.task_model:
+                raise ValueError(
+                    "Checkpoint cloned front end was trained for "
+                    f"{trained_task_model}, not --task-model {args.task_model}"
+                )
+            trained_backend_weights = checkpoint.get("source_checkpoints", {}).get(
+                "yolov5_weights_sha256"
+            )
+            if (trained_backend_weights is not None and
+                    trained_backend_weights != detector_metadata["weights_id"]):
+                raise ValueError(
+                    "Evaluation must use the same frozen YOLOv5 weights as training: "
+                    f"checkpoint={trained_backend_weights}, "
+                    f"evaluation={detector_metadata['weights_id']}"
+                )
+            last_frontend_layer = feature_objective.get(
+                "cloned_frontend_last_layer",
+                feature_objective.get("last_backbone_layer"),
+            )
+            if last_frontend_layer is None:
+                last_frontend_layer = max(
+                    int(key.split(".", 1)[0]) for key in cloned_frontend_state
+                )
+            last_frontend_layer = int(last_frontend_layer)
+            install_cloned_frontend(detector, cloned_frontend_state, last_frontend_layer)
+            machine_frontend = {
+                "type": "checkpoint_cloned_yolov5_frontend",
+                "weights_id": state_dict_sha256(cloned_frontend_state),
+                "trainable_during_codec_training": (
+                    "yolo_cloned_frontend" in checkpoint.get("trainable_components", ())
+                ),
+                "last_frontend_layer": last_frontend_layer,
+                "feature_layer_indices": list(feature_objective.get("layer_indices", (4,))),
+                "task_backend": "frozen_pretrained_yolov5",
+                "task_backend_weights_id": detector_metadata["weights_id"],
+            }
+        else:
+            machine_frontend = {
+                "type": "pretrained_yolov5_frontend",
+                "weights_id": detector_metadata["weights_id"],
+                "trainable_during_codec_training": False,
+                "task_backend": "frozen_pretrained_yolov5",
+                "task_backend_weights_id": detector_metadata["weights_id"],
+            }
+        frontends[str(base_qp)] = machine_frontend
+        print(f"QP {base_qp} uses {video_path}")
+
         evaluator = DetectionMAP()
         temporal_evaluators = {
             name: DetectionMAP() for name in TEMPORAL_BIN_ORDER
@@ -608,6 +618,7 @@ def evaluate_codec(args: argparse.Namespace) -> None:
                 bitstream_path,
                 device,
                 args.reset_interval,
+                hierarchical_qp,
             )
             next_image_id = decode_and_evaluate_sequence(
                 image_model,
@@ -638,6 +649,8 @@ def evaluate_codec(args: argparse.Namespace) -> None:
         temporal_rates = aggregate_temporal_rate(sequence_records)
         point = {
             "base_qp": base_qp,
+            "video_checkpoint": str(video_path.resolve()),
+            "hierarchical_qp": hierarchical_qp,
             **aggregate_rate(sequence_records),
             **evaluator.compute(),
             "sequences": sequence_records,
@@ -647,6 +660,16 @@ def evaluate_codec(args: argparse.Namespace) -> None:
             ),
         }
         points.append(point)
+        del model, checkpoint, cloned_frontend_state
+
+    machine_frontend = (
+        next(iter(frontends.values())) if len(set(video_paths)) == 1 else {
+            "type": "per_rate_checkpoint_frontends",
+            "by_base_qp": frontends,
+            "task_backend": "frozen_pretrained_yolov5",
+            "task_backend_weights_id": detector_metadata["weights_id"],
+        }
+    )
 
     output = {
         "schema_version": 7,
@@ -654,9 +677,12 @@ def evaluate_codec(args: argparse.Namespace) -> None:
         "codec": "DCVC-RT DMCI + DMC all-frame VCM",
         "codec_config": {
             "image_checkpoint": str(Path(args.image_ckpt).resolve()),
-            "checkpoint": str(Path(args.video_ckpt).resolve()),
+            "checkpoint": (
+                str(video_paths[0].resolve()) if len(set(video_paths)) == 1 else None
+            ),
+            "checkpoints": [str(path.resolve()) for path in video_paths],
             "base_qps": list(args.qps),
-            "qp_offsets": list(QP_OFFSETS),
+            "qp_offsets": list(QP_OFFSETS if qp_schedule_policy else (0,) * 8),
             "two_entropy_coders": (
                 "enabled when source width*height exceeds 1280*720"
             ),
@@ -902,7 +928,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--data-dir", help="Root containing evaluation frames and labels")
     parser.add_argument("--dataset-manifest", help="Full-resolution evaluation manifest JSON")
     parser.add_argument("--image-ckpt", help="Frozen official DCVC-RT DMCI checkpoint")
-    parser.add_argument("--video-ckpt", help="Official DMC or trained VCM checkpoint")
+    parser.add_argument(
+        "--video-ckpt",
+        nargs="+",
+        help="One DMC checkpoint for all QPs, or one checkpoint per QP",
+    )
     parser.add_argument("--method-name", default="dcvc_rt_vcm")
     parser.add_argument(
         "--qps",

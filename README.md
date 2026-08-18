@@ -232,21 +232,23 @@ python evaluate_hevc.py \
   --keep-progress-checkpoint
 ```
 
-The command below is retained only for the optional legacy single-checkpoint
-variable-rate mode. Paper-mode evaluation uses the four-checkpoint `test_base.py`
-command above so each rate point uses the model trained for its lambda:
+Evaluate paper mode with the four checkpoints in QP order `0,21,42,63`:
 
 ```bash
 python evaluate_vcm.py --mode codec \
   --data-dir /kaggle/input/class-d/vcm_eval \
   --dataset-manifest /kaggle/input/class-d/vcm_eval/manifest.json \
   --image-ckpt /kaggle/input/pre-trained-model/cvpr2025_image.pth.tar \
-  --video-ckpt /kaggle/input/latest/video_variable_rate_last.pth \
+  --video-ckpt \
+    /kaggle/working/checkpoints/paper_lambda2/best_val_loss.pth \
+    /kaggle/working/checkpoints/paper_lambda4/best_val_loss.pth \
+    /kaggle/working/checkpoints/paper_lambda8/best_val_loss.pth \
+    /kaggle/working/checkpoints/paper_lambda16/best_val_loss.pth \
   --qps 0 21 42 63 \
   --reset-interval 64 \
   --force-zero-thres 0.12 \
   --yolov5-weights ./yolov5s.pt \
-  --method-name dcvc_rt_svc_base_epoch20
+  --method-name svc_dcvc_rt_paper
 ```
 
 Finally compute both BD-rate-mAP values and create two separate plots:

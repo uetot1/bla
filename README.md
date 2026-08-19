@@ -66,19 +66,19 @@ vimeo_septuplet/
   sequences/00001/0001/im1.png ... im7.png
 ```
 
-The paper protocol trains four separate base-layer models, one for each fixed
-`lambda_base`. Random QP, lambda interpolation and hierarchical QP offsets are
-disabled in this mode. DCVC-RT needs a QP index, so this project maps the four
-paper operating points to its four canonical pretrained-rate indices:
+Train four separate base-layer models, one for each fixed `lambda_base` in
+`{2, 4, 8, 16}`. During every training iteration, DCVC-RT samples a base QP
+uniformly from `0..63`; the fixed task lambda is independent of that QP.
+The five-frame DCVC-RT hierarchical QP offsets remain enabled:
 
 ```text
-QP       0    21    42    63
-lambda   2     4     8    16
+base QP ~ Uniform(0, 63)
+lambda_base = 2, 4, 8, or 16 (one model per value)
 ```
 
 Each sample loads six consecutive Vimeo frames. The first frame initializes the
 DCVC-RT DPB through frozen pretrained DMCI and is outside the loss. The following
-five P-frames use the same fixed QP and form the paper's `N=5` sequence loss:
+five P-frames form the paper's `N=5` sequence loss:
 
 ```text
 L_base* = (1/5) * sum[t=1..5](R_DMC(t) + lambda_base * MSE(F4(x_t), Fclone4(xhat_t)))
@@ -120,18 +120,18 @@ torchrun --standalone --nproc_per_node=2 train_base.py \
 For the lambda-2 model the output names are:
 
 ```text
-checkpoints/paper_lambda2/video_lambda2_qp0_last.pth.tar
-checkpoints/paper_lambda2/video_lambda2_qp0_epoch_0001.pth
+checkpoints/paper_lambda2/video_lambda2_random_qp_last.pth.tar
+checkpoints/paper_lambda2/video_lambda2_random_qp_epoch_0001.pth
 checkpoints/paper_lambda2/best_val_loss.pth
-checkpoints/paper_lambda2/lambda2_qp0_training_history.json
-checkpoints/paper_lambda2/lambda2_qp0_training_curves.png
-checkpoints/paper_lambda2/lambda2_qp0_training_curves_epoch_0001.png
+checkpoints/paper_lambda2/lambda2_random_qp_training_history.json
+checkpoints/paper_lambda2/lambda2_random_qp_training_curves.png
+checkpoints/paper_lambda2/lambda2_random_qp_training_curves_epoch_0001.png
 ```
 
 The history and Total Loss/BPP/Feature MSE chart are refreshed after every epoch;
 an epoch-numbered chart is also retained. Every epoch evaluates the deterministic
-centre crop from `sep_testlist.txt` at that model's fixed QP. The lowest held-out
-loss is saved as `best_val_loss.pth`.
+centre crop from `sep_testlist.txt` while cycling deterministically through
+QPs `0,21,42,63`. The lowest held-out loss is saved as `best_val_loss.pth`.
 
 If training is interrupted, resume the same lambda and output directory.
 `--epochs` is the final total, not the number of additional epochs:
@@ -147,11 +147,10 @@ python train_base.py \
 
 Use `--resume /path/to/checkpoint.pth.tar` for an explicit checkpoint. The checkpoint restores DMC, the trainable cloned front-end, joint Adam, Python/Torch/CUDA RNG state, histories, and the next epoch. DDP resume requires the same process count. An interruption inside an epoch repeats that incomplete epoch because checkpoints are committed only after complete epochs.
 
-Older checkpoints cannot resume into schema 6 because the frame/QP schedule and
+Older checkpoints cannot resume into schema 7 because the lambda/QP schedule and
 optimizer state differ. Start these four runs from the supplied pretrained
-DCVC-RT and YOLO checkpoints. `--validation_config` is deliberately rejected in
-paper mode: BD-rate selection must combine the four separately trained models,
-not evaluate one fixed-rate model at four QPs.
+DCVC-RT and YOLO checkpoints. Each random-QP model can use
+`--validation_config` to select its own checkpoint by BD-rate-mAP.
 
 ## VTM anchor input
 
@@ -179,10 +178,7 @@ python test_base.py \
   --qps 0 21 42 63 \
   --model_path_i ./checkpoints/dcvc_rt/cvpr2025_image.pth.tar \
   --model_path_p \
-    ./checkpoints/paper_lambda2/best_val_loss.pth \
-    ./checkpoints/paper_lambda4/best_val_loss.pth \
     ./checkpoints/paper_lambda8/best_val_loss.pth \
-    ./checkpoints/paper_lambda16/best_val_loss.pth \
   --inp_path ./input/ParkScene \
   --labels_path ./labels/ParkScene \
   --out_path ./out/ParkScene \
@@ -193,9 +189,9 @@ python test_base.py \
   --anchor_path ./anchors/ParkScene.json
 ```
 
-The four checkpoint paths correspond positionally to QPs `0,21,42,63`. Each
-checkpoint supplies its own trained DMC and cloned front-end; frozen YOLO layers
-`5..23` produce detections. Reconstructed PNG files and actual DCVC-RT `.bin`
+The same random-QP checkpoint is evaluated at QPs `0,21,42,63`. It supplies its
+trained DMC and cloned front-end; frozen YOLO layers `5..23` produce detections.
+Reconstructed PNG files and actual DCVC-RT `.bin`
 streams are written under `out/ParkScene/qp_<QP>/`. The proposal curve and
 `bd_rate_map_percent` are written to `machine_metrics.json`; a negative value
 means bitrate saving over the anchor at equal mAP.
@@ -205,8 +201,8 @@ Use `--map_metric map50` when the anchor contains `map50`; the default is `map50
 This reproduces the paper's base-layer training schedule while retaining the
 requested DCVC-RT core and pretrained weights. It cannot reproduce the paper's
 published numbers exactly because the original paper uses LCCM-VC/CANF-VC, not
-DCVC-RT; the lambda-to-QP mapping and frozen DMCI reference are the necessary
-codec adaptation.
+DCVC-RT; frozen DMCI and DCVC-RT's QP-conditioned coding are necessary codec
+adaptations.
 
 ## HEVC x265 comparison using the reference evaluator
 
@@ -232,7 +228,7 @@ python evaluate_hevc.py \
   --keep-progress-checkpoint
 ```
 
-Evaluate paper mode with the four checkpoints in QP order `0,21,42,63`:
+Evaluate one fixed-lambda random-QP model at all four QPs:
 
 ```bash
 python evaluate_vcm.py --mode codec \
@@ -240,10 +236,7 @@ python evaluate_vcm.py --mode codec \
   --dataset-manifest /kaggle/input/class-d/vcm_eval/manifest.json \
   --image-ckpt /kaggle/input/pre-trained-model/cvpr2025_image.pth.tar \
   --video-ckpt \
-    /kaggle/working/checkpoints/paper_lambda2/best_val_loss.pth \
-    /kaggle/working/checkpoints/paper_lambda4/best_val_loss.pth \
     /kaggle/working/checkpoints/paper_lambda8/best_val_loss.pth \
-    /kaggle/working/checkpoints/paper_lambda16/best_val_loss.pth \
   --qps 0 21 42 63 \
   --reset-interval 64 \
   --force-zero-thres 0.12 \

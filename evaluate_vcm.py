@@ -71,10 +71,16 @@ def load_codec_checkpoint(model, path: str | Path, state_key: str | None = None)
     """Load official or project checkpoint weights and return its metadata."""
     checkpoint = torch.load(path, map_location="cpu", weights_only=True)
     if isinstance(checkpoint, dict):
-        state = checkpoint.get(
-            state_key or "dmc_state_dict",
-            checkpoint.get("model_state_dict", checkpoint.get("state_dict", checkpoint)),
-        )
+        state = checkpoint.get(state_key or "dmc_state_dict")
+        if state is None:
+            state = next(
+                (
+                    checkpoint[key]
+                    for key in ("p_net", "model_state_dict", "state_dict")
+                    if key in checkpoint
+                ),
+                checkpoint,
+            )
     else:
         state = checkpoint
     model.load_state_dict(
@@ -542,7 +548,10 @@ def evaluate_codec(args: argparse.Namespace) -> None:
                 hierarchical_qp != qp_schedule_policy):
             raise ValueError("All rate points must use the same frame-QP schedule")
         qp_schedule_policy = hierarchical_qp
-        cloned_frontend_state = checkpoint.get("cloned_frontend_state_dict")
+        cloned_frontend_state = checkpoint.get(
+            "cloned_frontend_state_dict",
+            checkpoint.get("student_front"),
+        )
         has_clone = cloned_frontend_state is not None
         if clone_policy is not None and has_clone != clone_policy:
             raise ValueError("All rate points must use the same cloned front-end policy")
@@ -780,9 +789,57 @@ def curve_arrays(data: dict, rate_key: str, metric: str) -> tuple[np.ndarray, np
     return pareto_front(rates, quality)
 
 
+def combine_results(results: list[dict], method: str) -> dict:
+    """Pool independently trained operating points into one proposed RD curve."""
+    combined = dict(results[0])
+    combined["method"] = method
+    combined["source_methods"] = [result["method"] for result in results]
+    combined["points"] = [
+        {**point, "source_method": result["method"]}
+        for result in results
+        for point in result["points"]
+    ]
+    combined["rate_points"] = len(combined["points"])
+    combined["machine_frontend"] = {
+        "type": "per_operating_point_checkpoint_frontends",
+        "sources": [result["machine_frontend"] for result in results],
+    }
+    return combined
+
+
+def comparison_self_check() -> None:
+    def fake_result(method: str, rates: list[float], quality: list[float]) -> dict:
+        return {
+            "method": method,
+            "machine_frontend": {"type": "self_check"},
+            "points": [
+                {"actual_bpp": rate, "map5095": value}
+                for rate, value in zip(rates, quality, strict=True)
+            ],
+        }
+
+    anchor = fake_result("anchor", [1, 2, 3, 4], [0.1, 0.2, 0.3, 0.4])
+    candidate = combine_results(
+        [
+            fake_result("lambda_2", [0.8, 1.6, 2.4, 3.2], [0.1, 0.2, 0.3, 0.4]),
+            fake_result("lambda_4", [0.9, 1.7, 2.5, 3.3], [0.09, 0.19, 0.29, 0.39]),
+        ],
+        "proposed",
+    )
+    anchor_rate, anchor_quality = curve_arrays(anchor, "actual_bpp", "map5095")
+    candidate_rate, candidate_quality = curve_arrays(
+        candidate, "actual_bpp", "map5095"
+    )
+    assert len(candidate["points"]) == 8
+    assert len(candidate_rate) == 4
+    assert compute_bd_rate(
+        anchor_rate, anchor_quality, candidate_rate, candidate_quality
+    ) < 0
+    print("Multi-checkpoint Pareto/BD-rate self-check passed")
+
+
 def save_curve_csv(
-    anchor: dict,
-    candidate: dict,
+    results: list[dict],
     output_path: Path,
 ) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -791,6 +848,7 @@ def save_curve_csv(
             handle,
             fieldnames=(
                 "method",
+                "source_method",
                 "base_qp",
                 "actual_bpp",
                 "kbps",
@@ -799,14 +857,15 @@ def save_curve_csv(
             ),
         )
         writer.writeheader()
-        for data in (anchor, candidate):
+        for data in results:
             for point in data["points"]:
                 writer.writerow(
                     {
                         key: value
                         for key, value in {
                             "method": data["method"],
-                            "base_qp": point["base_qp"],
+                            "source_method": point.get("source_method", data["method"]),
+                            "base_qp": point.get("base_qp", point.get("qp")),
                             "actual_bpp": point["actual_bpp"],
                             "kbps": point["kbps"],
                             "map50": point["map50"],
@@ -817,34 +876,41 @@ def save_curve_csv(
 
 
 def plot_rd_curve(
-    anchor: dict,
-    candidate: dict,
+    results: list[dict],
     rate_key: str,
     metric: str,
     output_path: Path,
 ) -> None:
     try:
         import matplotlib.pyplot as plt
+        from scipy.interpolate import PchipInterpolator
     except ImportError as error:
-        raise RuntimeError("RD-curve plotting requires matplotlib") from error
+        raise RuntimeError("RD-curve plotting requires matplotlib and scipy") from error
 
     figure, axis = plt.subplots(figsize=(7.5, 5.5))
-    for data, marker in ((anchor, "o"), (candidate, "s")):
-        points = sorted(data["points"], key=lambda point: point[rate_key])
-        rates = [point[rate_key] for point in points]
-        quality = [point[metric] for point in points]
-        axis.plot(rates, quality, marker=marker, linewidth=2, label=data["method"])
-        for point in points:
-            axis.annotate(
-                f"q={point['base_qp']}",
-                (point[rate_key], point[metric]),
-                xytext=(4, 5),
-                textcoords="offset points",
-                fontsize=8,
-            )
+    markers = ("o", "s", "^")
+    for index, data in enumerate(results):
+        rates, quality = curve_arrays(data, rate_key, metric)
+        quality_grid = np.linspace(quality[0], quality[-1], 200)
+        smooth_rate = 10 ** PchipInterpolator(quality, np.log10(rates))(quality_grid)
+        line = axis.plot(
+            smooth_rate,
+            quality_grid * 100,
+            linewidth=2,
+            label=data["method"],
+        )[0]
+        axis.scatter(
+            rates,
+            quality * 100,
+            marker=markers[index % len(markers)],
+            color=line.get_color(),
+            zorder=3,
+        )
 
     axis.set_xlabel("Actual BPP" if rate_key == "actual_bpp" else "Actual bitrate (kbps)")
-    axis.set_ylabel("mAP@0.5" if metric == "map50" else "mAP@[0.5:0.95]")
+    axis.set_ylabel(
+        "mAP@0.5 (%)" if metric == "map50" else "mAP@[0.5:0.95] (%)"
+    )
     axis.set_title("VCM Rate-Accuracy Curve")
     axis.grid(True, alpha=0.3)
     axis.legend()
@@ -855,33 +921,49 @@ def plot_rd_curve(
 
 
 def compare_bd_rate(args: argparse.Namespace) -> None:
-    anchor = load_results(args.anchor_results)
-    candidate = load_results(args.candidate_results)
-    validate_compatible_results(anchor, candidate)
-    metric_results = {}
-    for metric in ("map50", "map5095"):
-        anchor_rate, anchor_quality = curve_arrays(anchor, args.rate, metric)
-        candidate_rate, candidate_quality = curve_arrays(candidate, args.rate, metric)
-        metric_results[metric] = {
-            "bd_rate_percent": compute_bd_rate(
-                anchor_rate, anchor_quality, candidate_rate, candidate_quality
-            ),
-            "bd_metric": compute_bd_metric(
-                anchor_rate, anchor_quality, candidate_rate, candidate_quality
-            ),
-        }
+    anchors = [load_results(path) for path in args.anchor_results]
+    candidate_parts = [load_results(path) for path in args.candidate_results]
+    for result in [*anchors[1:], *candidate_parts]:
+        validate_compatible_results(anchors[0], result)
+    candidate = combine_results(candidate_parts, args.candidate_name)
+
+    comparisons = []
+    for anchor in anchors:
+        metric_results = {}
+        for metric in ("map50", "map5095"):
+            anchor_rate, anchor_quality = curve_arrays(anchor, args.rate, metric)
+            candidate_rate, candidate_quality = curve_arrays(candidate, args.rate, metric)
+            metric_results[metric] = {
+                "overlap_quality_min": float(
+                    max(anchor_quality.min(), candidate_quality.min())
+                ),
+                "overlap_quality_max": float(
+                    min(anchor_quality.max(), candidate_quality.max())
+                ),
+                "bd_rate_percent": compute_bd_rate(
+                    anchor_rate, anchor_quality, candidate_rate, candidate_quality
+                ),
+                "bd_metric": compute_bd_metric(
+                    anchor_rate, anchor_quality, candidate_rate, candidate_quality
+                ),
+            }
+        comparisons.append(
+            {
+                "anchor": anchor["method"],
+                "candidate": candidate["method"],
+                "metrics": metric_results,
+            }
+        )
 
     result = {
-        "anchor": anchor["method"],
+        "anchors": [anchor["method"] for anchor in anchors],
         "candidate": candidate["method"],
-        "comparison_scope": anchor["comparison_scope"],
-        "anchor_machine_frontend": anchor["machine_frontend"],
+        "candidate_sources": candidate["source_methods"],
+        "comparison_scope": anchors[0]["comparison_scope"],
         "candidate_machine_frontend": candidate["machine_frontend"],
         "rate": args.rate,
         "metric": args.metric,
-        "bd_rate_percent": metric_results[args.metric]["bd_rate_percent"],
-        "bd_metric": metric_results[args.metric]["bd_metric"],
-        "metrics": metric_results,
+        "comparisons": comparisons,
         "interpretation": "negative BD-rate means bitrate saving at equal mAP",
     }
 
@@ -891,17 +973,16 @@ def compare_bd_rate(args: argparse.Namespace) -> None:
         json.dumps(result, indent=2),
         encoding="utf-8",
     )
-    save_curve_csv(anchor, candidate, output_dir / "rd_points.csv")
+    plot_results = [candidate, *anchors]
+    save_curve_csv(plot_results, output_dir / "rd_points.csv")
     plot_rd_curve(
-        anchor,
-        candidate,
+        plot_results,
         args.rate,
         "map50",
         output_dir / f"rd_curve_{args.rate}_map50.png",
     )
     plot_rd_curve(
-        anchor,
-        candidate,
+        plot_results,
         args.rate,
         "map5095",
         output_dir / f"rd_curve_{args.rate}_map5095.png",
@@ -924,7 +1005,11 @@ def summarize_training(args: argparse.Namespace) -> None:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--mode", required=True, choices=("codec", "bdrate", "training"))
+    parser.add_argument(
+        "--mode",
+        required=True,
+        choices=("codec", "bdrate", "training", "selfcheck"),
+    )
     parser.add_argument("--data-dir", help="Root containing evaluation frames and labels")
     parser.add_argument("--dataset-manifest", help="Full-resolution evaluation manifest JSON")
     parser.add_argument("--image-ckpt", help="Frozen official DCVC-RT DMCI checkpoint")
@@ -969,8 +1054,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--bitstream-dir", default="output/bitstreams")
     parser.add_argument("--save-reconstructions", action="store_true")
     parser.add_argument("--reconstruction-dir", default="output/reconstructions")
-    parser.add_argument("--anchor-results")
-    parser.add_argument("--candidate-results")
+    parser.add_argument(
+        "--anchor-results",
+        nargs="+",
+        help="One or more reference result JSON files (for example x265 and DCVC-RT)",
+    )
+    parser.add_argument(
+        "--candidate-results",
+        nargs="+",
+        help="One or more proposed result JSON files pooled into a Pareto curve",
+    )
+    parser.add_argument("--candidate-name", default="Proposed DCVC-RT-VCM")
     parser.add_argument("--rate", default="actual_bpp", choices=("actual_bpp", "kbps"))
     parser.add_argument("--metric", default="map5095", choices=("map50", "map5095"))
     parser.add_argument("--log-dir", default="checkpoints/vcm_video/logs")
@@ -1002,5 +1096,7 @@ if __name__ == "__main__":
                 "bdrate mode requires --anchor-results and --candidate-results"
             )
         compare_bd_rate(arguments)
+    elif arguments.mode == "selfcheck":
+        comparison_self_check()
     else:
         summarize_training(arguments)

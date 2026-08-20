@@ -224,6 +224,65 @@ output/svc_lambda8/svc_lambda8_random_qp_results.json
 
 Lặp lại cho λ = 2, 4, 16 rồi chọn model có BD-rate-mAP validation tốt nhất.
 
+### Đường Proposed dày từ bốn checkpoint λ
+
+Notebook chạy Google Colab: `colab_dense_class_d_evaluation.ipynb`.
+
+Không train lại chỉ để có thêm điểm. Mỗi checkpoint random-QP được đánh giá tại
+`0 16 32 48 63`; 20 điểm λ×QP sau đó được gộp và lọc Pareto. Các marker là điểm
+đo thật, còn đường cong chỉ là PCHIP dùng để hiển thị.
+
+```bash
+for LAMBDA in 2 4 8 16; do
+  python evaluate_vcm.py --mode codec \
+    --data-dir /data/sfu_hw_objects_class_d \
+    --dataset-manifest /data/sfu_hw_objects_class_d/manifest.json \
+    --image-ckpt /weights/cvpr2025_image.pth.tar \
+    --video-ckpt /checkpoints/${LAMBDA}.pth.tar \
+    --qps 0 16 32 48 63 \
+    --reset-interval 32 --minimum-sequence-frames 65 \
+    --force-zero-thres 0.12 --codec-precision fp16 \
+    --yolov5-repo /opt/yolov5 --yolov5-weights /weights/yolov5s.pt \
+    --method-name lambda_${LAMBDA} \
+    --output-dir output/lambda_${LAMBDA} \
+    --bitstream-dir output/bitstreams
+done
+```
+
+Đánh giá DCVC-RT gốc trên đúng cùng protocol:
+
+```bash
+python evaluate_vcm.py --mode codec \
+  --data-dir /data/sfu_hw_objects_class_d \
+  --dataset-manifest /data/sfu_hw_objects_class_d/manifest.json \
+  --image-ckpt /weights/cvpr2025_image.pth.tar \
+  --video-ckpt /weights/cvpr2025_video.pth.tar \
+  --qps 0 8 16 24 32 40 48 56 63 \
+  --reset-interval 32 --minimum-sequence-frames 65 \
+  --force-zero-thres 0.12 --codec-precision fp16 \
+  --yolov5-repo /opt/yolov5 --yolov5-weights /weights/yolov5s.pt \
+  --method-name "Original DCVC-RT" \
+  --output-dir output/original --bitstream-dir output/bitstreams
+```
+
+Sau khi có JSON x265 theo phần dưới, vẽ chung ba đường và tính BD-rate của
+Proposed so với từng anchor:
+
+```bash
+python evaluate_vcm.py --mode bdrate \
+  --anchor-results \
+    output/original/Original_DCVC-RT_results.json \
+    output/hevc/hevc_x265_ldp_yuv420_8bit_results.json \
+  --candidate-results \
+    output/lambda_2/lambda_2_results.json \
+    output/lambda_4/lambda_4_results.json \
+    output/lambda_8/lambda_8_results.json \
+    output/lambda_16/lambda_16_results.json \
+  --candidate-name "Proposed DCVC-RT-VCM" \
+  --rate actual_bpp --metric map5095 \
+  --output-dir output/comparison_dense
+```
+
 ## Đánh giá HEVC/x265
 
 `evaluate_hevc.py` nén bằng x265, giải mã bằng FFmpeg, chạy YOLO trên toàn bộ

@@ -164,6 +164,12 @@ def evaluate_checkpoint(
         p_order = 1
 
         for frame_index, frame_path in enumerate(sequence.frame_paths):
+            if frame_index % 25 == 0:
+                print(
+                    f"SVC checkpoint {checkpoint_number}: {sequence.name} "
+                    f"frame {frame_index + 1}/{sequence.frame_count}",
+                    flush=True,
+                )
             coding_frame = dataset.load_frame(frame_path).unsqueeze(0).to(device)
             if frame_index % args.gop == 0:
                 reconstructed, likelihoods, _ = model.if_model(
@@ -271,18 +277,39 @@ def main() -> None:
     device = torch.device("cuda:0")
     dataset = AnnotatedVideoDataset(args.data_dir, args.dataset_manifest)
     sequences = list(dataset)
-    points = [
-        evaluate_checkpoint(
-            checkpoint,
-            number,
-            dataset,
-            sequences,
-            args.yolov5_weights,
-            device,
-            args,
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    progress_path = args.output_dir / "Original_SVC_Base_progress.json"
+    run_identity = {
+        "evaluation_id": evaluation_id(dataset, sequences),
+        "checkpoints": [str(path.resolve()) for path in args.checkpoints],
+    }
+    points = []
+    if progress_path.is_file():
+        progress_data = json.loads(progress_path.read_text(encoding="utf-8"))
+        if any(progress_data.get(key) != value for key, value in run_identity.items()):
+            raise RuntimeError(f"SVC progress belongs to another run: {progress_path}")
+        points = progress_data.get("points", [])
+    completed = {int(point["checkpoint_number"]) for point in points}
+    for number, checkpoint in enumerate(args.checkpoints, start=1):
+        if number in completed:
+            print(f"SKIP completed SVC checkpoint {number}")
+            continue
+        points.append(
+            evaluate_checkpoint(
+                checkpoint,
+                number,
+                dataset,
+                sequences,
+                args.yolov5_weights,
+                device,
+                args,
+            )
         )
-        for number, checkpoint in enumerate(args.checkpoints, start=1)
-    ]
+        points.sort(key=lambda point: int(point["checkpoint_number"]))
+        progress_path.write_text(
+            json.dumps({"schema_version": 1, **run_identity, "points": points}, indent=2),
+            encoding="utf-8",
+        )
 
     output = {
         "schema_version": 7,
@@ -314,7 +341,6 @@ def main() -> None:
         "rate_points": len(points),
         "points": points,
     }
-    args.output_dir.mkdir(parents=True, exist_ok=True)
     output_path = args.output_dir / "Original_SVC_Base_estimated_results.json"
     output_path.write_text(json.dumps(output, indent=2), encoding="utf-8")
     print(f"Saved Original SVC estimated-BPP results to {output_path}")

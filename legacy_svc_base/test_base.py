@@ -30,7 +30,6 @@ import copy
 from models.common import DetectMultiBackend
 from utils.torch_utils import select_device, smart_inference_mode
 from loss import MS_SSIM, PSNR
-from Model.Model import Model
 from util.sampler import Resampler
 #=======================================================================================================================
 FILE = Path(__file__).resolve()

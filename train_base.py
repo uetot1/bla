@@ -26,11 +26,13 @@ from svc_machine.feature_loss import feature_mse_loss, machine_rate_distortion_l
 from svc_machine.system import MachineBaseSystem
 
 
-LAMBDA_MIN = 2.0
-LAMBDA_MAX = 16.0
+LAMBDA_MIN = 1.0
+LAMBDA_MAX = 64.0
+LAMBDA_MAPPING = 'geometric_qp'
 INDEX_MAP = (0, 1, 0, 2, 0, 2, 0, 2)
+QP_OFFSETS = (0, 8, 0, 4, 0, 4, 0, 4)
+DISTORTION_WEIGHTS = (0.5, 1.2, 0.5, 0.9)
 VALIDATION_QPS = (0, 21, 42, 63)
-PAPER_LAMBDAS = (2, 4, 8, 16)
 PROJECT_ROOT = Path(__file__).resolve().parent
 
 
@@ -89,7 +91,7 @@ def lambda_for_qp(qp):
     if not 0 <= qp < DMCI.get_qp_num():
         raise ValueError('base QP must be in the range 0..63')
     position = qp / (DMCI.get_qp_num() - 1)
-    return math.exp(math.log(LAMBDA_MIN) + position * math.log(LAMBDA_MAX / LAMBDA_MIN))
+    return LAMBDA_MIN * (LAMBDA_MAX / LAMBDA_MIN) ** position
 
 
 def qp_schedule(mode, fixed_qp):
@@ -98,7 +100,7 @@ def qp_schedule(mode, fixed_qp):
 
 
 def training_tag(mode, fixed_qp, lambda_task):
-    return f'lambda{lambda_task:g}_random_qp' if mode == 'variable' \
+    return f'lambda{LAMBDA_MIN:g}-{LAMBDA_MAX:g}_random_qp' if mode == 'variable' \
         else f'lambda{lambda_task:g}_qp{fixed_qp}'
 
 
@@ -181,8 +183,12 @@ def save_checkpoint(path, epoch, mode, lambda_task, system, optimizer,
         'mode': mode,
         'lambda_task': lambda_task,
         'lambda_range': (LAMBDA_MIN, LAMBDA_MAX),
+        'lambda_mapping': LAMBDA_MAPPING if mode == 'variable' else 'fixed',
         'qp_sampling': qp_schedule(mode, fixed_qp),
         'hierarchical_qp': mode != 'fixed',
+        'hierarchical_qp_offsets': QP_OFFSETS if mode == 'variable' else (0,) * 8,
+        'hierarchical_distortion_weights': (
+            DISTORTION_WEIGHTS if mode == 'variable' else (1.0,)),
     }
     if fixed_qp is not None:
         metadata.update({'fixed_qp': fixed_qp, 'fixed_lambda': lambda_task})
@@ -206,8 +212,10 @@ def save_checkpoint(path, epoch, mode, lambda_task, system, optimizer,
 def resume_training(path, mode, fixed_qp, lambda_task, system, optimizer, world_size):
     checkpoint = torch.load(path, map_location='cpu', weights_only=True)
     required = {
-        'schema_version', 'epoch', 'mode', 'lambda_task', 'lambda_range', 'qp_sampling',
-        'hierarchical_qp', 'state_dict',
+        'schema_version', 'epoch', 'mode', 'lambda_task', 'lambda_range',
+        'lambda_mapping', 'qp_sampling',
+        'hierarchical_qp', 'hierarchical_qp_offsets',
+        'hierarchical_distortion_weights', 'state_dict',
         'cloned_frontend_state_dict',
         'optimizer', 'rng_states', 'world_size',
     }
@@ -218,14 +226,23 @@ def resume_training(path, mode, fixed_qp, lambda_task, system, optimizer, world_
         raise ValueError('Unsupported resume checkpoint schema')
     if checkpoint['mode'] != mode:
         raise ValueError(f'Resume checkpoint mode is {checkpoint["mode"]}, not {mode}')
-    if float(checkpoint['lambda_task']) != lambda_task:
-        raise ValueError('Resume checkpoint uses a different fixed task lambda')
+    if checkpoint['lambda_task'] != lambda_task:
+        raise ValueError('Resume checkpoint uses a different task-lambda policy')
     if tuple(checkpoint['lambda_range']) != (LAMBDA_MIN, LAMBDA_MAX):
         raise ValueError('Resume checkpoint uses a different lambda range')
+    expected_mapping = LAMBDA_MAPPING if mode == 'variable' else 'fixed'
+    if checkpoint['lambda_mapping'] != expected_mapping:
+        raise ValueError('Resume checkpoint uses a different lambda mapping')
     if tuple(checkpoint['qp_sampling']) != qp_schedule(mode, fixed_qp):
         raise ValueError('Resume checkpoint uses a different QP sampling strategy')
     if checkpoint['hierarchical_qp'] != (mode != 'fixed'):
         raise ValueError('Resume checkpoint uses a different frame-QP schedule')
+    expected_offsets = QP_OFFSETS if mode == 'variable' else (0,) * 8
+    if tuple(checkpoint['hierarchical_qp_offsets']) != expected_offsets:
+        raise ValueError('Resume checkpoint uses different hierarchical QP offsets')
+    expected_weights = DISTORTION_WEIGHTS if mode == 'variable' else (1.0,)
+    if tuple(checkpoint['hierarchical_distortion_weights']) != expected_weights:
+        raise ValueError('Resume checkpoint uses different distortion weights')
     if mode == 'fixed' and checkpoint.get('fixed_qp') != fixed_qp:
         raise ValueError('Resume checkpoint uses a different fixed QP')
     if checkpoint['world_size'] != world_size:
@@ -244,8 +261,12 @@ def save_evaluation_checkpoint(path, epoch, mode, lambda_task, system, fixed_qp=
         'mode': mode,
         'lambda_task': lambda_task,
         'lambda_range': (LAMBDA_MIN, LAMBDA_MAX),
+        'lambda_mapping': LAMBDA_MAPPING if mode == 'variable' else 'fixed',
         'qp_sampling': qp_schedule(mode, fixed_qp),
         'hierarchical_qp': mode != 'fixed',
+        'hierarchical_qp_offsets': QP_OFFSETS if mode == 'variable' else (0,) * 8,
+        'hierarchical_distortion_weights': (
+            DISTORTION_WEIGHTS if mode == 'variable' else (1.0,)),
     }
     if fixed_qp is not None:
         metadata.update({'fixed_qp': fixed_qp, 'fixed_lambda': lambda_task})
@@ -428,7 +449,11 @@ def forward_group(model, system, image_model, teacher, sequences, base_qp,
         system.video_model.shift_qp(base_qp, INDEX_MAP[frame_index % 8])
         if hierarchical_qp else base_qp
         for frame_index in range(1, group_size + 1))
-    result = model(ycbcr_frames, target_features, qps, lambda_task)
+    distortion_weights = tuple(
+        DISTORTION_WEIGHTS[frame_index % len(DISTORTION_WEIGHTS)]
+        for frame_index in range(group_size)) if hierarchical_qp else None
+    result = model(
+        ycbcr_frames, target_features, qps, lambda_task, distortion_weights)
     return result, lambda_task
 
 
@@ -442,10 +467,11 @@ def validate_training_epoch(model, system, image_model, teacher, loader,
     for batch_index, sequences in enumerate(progress):
         base_qp = fixed_qp if mode == 'fixed' \
             else VALIDATION_QPS[batch_index % len(VALIDATION_QPS)]
+        batch_lambda = lambda_task if mode == 'fixed' else lambda_for_qp(base_qp)
         sequences = sequences.to(device, non_blocking=True)
         (loss, rate, task_loss), _ = forward_group(
             model, system, image_model, teacher, sequences, base_qp,
-            lambda_task, group_size, mode != 'fixed')
+            batch_lambda, group_size, mode != 'fixed')
         system.video_model.clear_dpb()
         totals += torch.tensor(
             [loss.item(), rate.item(), task_loss.item(), 1],
@@ -471,14 +497,13 @@ def train_worker(args, device, rank, world_size, local_rank):
         raise ValueError('Global batch_size must be divisible by the distributed world size')
     if args.mode == 'fixed' and args.validation_config:
         raise ValueError(
-            'BD-rate selection requires the four fixed-lambda models together; '
-            'train each model without --validation_config')
+            'BD-rate selection is supported by the variable-rate model; '
+            'run the fixed-QP baseline without --validation_config')
     random.seed(args.seed + rank)
     torch.manual_seed(args.seed + rank)
     if device.type == 'cuda':
         torch.cuda.manual_seed(args.seed + rank)
-    lambda_task = float(args.paper_lambda) if args.paper_lambda is not None \
-        else lambda_for_qp(args.fixed_qp)
+    lambda_task = lambda_for_qp(args.fixed_qp) if args.mode == 'fixed' else None
     validation_config = load_validation_config(args.validation_config) \
         if args.validation_config else None
     if validation_config and device.type != 'cuda':
@@ -567,11 +592,12 @@ def train_worker(args, device, rank, world_size, local_rank):
         for sequences in progress:
             base_qp = synchronized_qp(
                 args.mode, args.fixed_qp, device, rank, world_size)
+            batch_lambda = lambda_task if args.mode == 'fixed' else lambda_for_qp(base_qp)
             sequences = sequences.to(device, non_blocking=True)
             optimizer.zero_grad(set_to_none=True)
             (loss, rate, task_loss), _ = forward_group(
                 model, system, image_model, teacher, sequences,
-                base_qp, lambda_task, args.group_size, args.mode != 'fixed')
+                base_qp, batch_lambda, args.group_size, args.mode != 'fixed')
             loss.backward()
             grad_norm = torch.nn.utils.clip_grad_norm_(
                 trainable_parameters, args.grad_clip, error_if_nonfinite=True)
@@ -587,7 +613,7 @@ def train_worker(args, device, rank, world_size, local_rank):
                                  bpp=totals['rate'] / batch_count,
                                  feature_mse=totals['task'] / batch_count,
                                  grad_norm=totals['grad_norm'] / batch_count,
-                                 qp=base_qp, lambda_task=f'{lambda_task:.3f}')
+                                 qp=base_qp, lambda_task=f'{batch_lambda:.3f}')
 
         reduced = torch.tensor([
             totals['loss'], totals['rate'], totals['task'], totals['grad_norm'], batch_count,
@@ -651,8 +677,7 @@ def train(args):
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
-        lambda_task = float(args.paper_lambda) if args.paper_lambda is not None \
-            else lambda_for_qp(args.fixed_qp)
+        lambda_task = lambda_for_qp(args.fixed_qp) if args.mode == 'fixed' else None
         tag = training_tag(args.mode, args.fixed_qp, lambda_task)
         select_best_checkpoint(args, tag, load_validation_config(args.validation_config))
 
@@ -662,10 +687,8 @@ def parse_args():
     parser.add_argument('--dataset', help='Vimeo-90K Septuplet root')
     parser.add_argument('--mode', choices=('variable', 'fixed'), default='variable',
                         help='variable samples base QP uniformly; fixed is a legacy fixed-QP baseline')
-    parser.add_argument('--paper_lambda', type=int, choices=PAPER_LAMBDAS,
-                        help='Fixed machine-task lambda; with this option QP is sampled uniformly from 0..63')
     parser.add_argument('--fixed_qp', type=int, default=42,
-                        help='Base QP for fixed-rate baseline (default: 42, lambda=8)')
+                        help='Base QP for fixed-rate baseline (default: 42, lambda=16)')
     parser.add_argument('--model_path_i', default='./checkpoints/dcvc_rt/cvpr2025_image.pth.tar')
     parser.add_argument('--model_path_p', default='./checkpoints/dcvc_rt/cvpr2025_video.pth.tar')
     parser.add_argument('--weights', default='./yolov5s.pt')
@@ -696,16 +719,13 @@ def parse_args():
 
 if __name__ == '__main__':
     arguments = parse_args()
-    if arguments.paper_lambda is not None:
-        arguments.mode = 'variable'
-    elif arguments.mode == 'variable' and not arguments.self_check and not arguments.check_dataset:
-        raise ValueError('--mode variable requires --paper_lambda 2, 4, 8, or 16')
     if arguments.self_check:
         from tempfile import TemporaryDirectory
 
-        assert PAPER_LAMBDAS == (2, 4, 8, 16)
+        assert all(math.isclose(lambda_for_qp(qp), expected) for qp, expected in (
+            (0, 1.0), (21, 4.0), (42, 16.0), (63, 64.0)))
         assert qp_schedule('fixed', 42) == ('fixed', 42)
-        assert training_tag('variable', 42, 8.0) == 'lambda8_random_qp'
+        assert training_tag('variable', 42, None) == 'lambda1-64_random_qp'
         random_state = random.getstate()
         random.seed(0)
         sampled_qps = [
@@ -715,13 +735,19 @@ if __name__ == '__main__':
         random.setstate(random_state)
         assert min(sampled_qps) == 0 and max(sampled_qps) == 63
         qp_shift = (0, 8, 4)
-        assert [qp_shift[INDEX_MAP[index]] for index in range(5)] == [0, 8, 0, 4, 0]
+        assert tuple(qp_shift[INDEX_MAP[index]] for index in range(8)) == QP_OFFSETS
+        assert [DISTORTION_WEIGHTS[index % 4] for index in range(5)] == [
+            0.5, 1.2, 0.5, 0.9, 0.5]
         target = torch.tensor([0.0, 1.0, 2.0])
         reconstructed = torch.tensor([1.0, 0.0, 0.0])
         distortion = feature_mse_loss(reconstructed, target)
         assert distortion.item() == 2.0
         assert machine_rate_distortion_loss(
             [torch.tensor(1.0)], [distortion], 2.0).item() == 5.0
+        weighted = machine_rate_distortion_loss(
+            [torch.tensor(1.0), torch.tensor(1.0)],
+            [distortion, distortion], 2.0, (0.5, 1.2))
+        assert math.isclose(weighted.item(), 4.4, rel_tol=1e-6)
         trainable_clone = torch.nn.Sequential(torch.nn.BatchNorm1d(1))
         joint_system = MachineBaseSystem(torch.nn.Linear(1, 1), trainable_clone)
         joint_system.train()
@@ -749,9 +775,9 @@ if __name__ == '__main__':
             snapshot_path = directory / 'epoch_0001.pth'
             best_path = directory / 'best.pth'
             save_training_outputs(history, directory / 'history.json', directory / 'curves.png')
-            save_checkpoint(checkpoint_path, 1, 'variable', 8.0, system, optimizer,
+            save_checkpoint(checkpoint_path, 1, 'variable', None, system, optimizer,
                             history, [], math.inf, [capture_rng_state(torch.device('cpu'))], 1)
-            save_evaluation_checkpoint(snapshot_path, 1, 'variable', 8.0, system)
+            save_evaluation_checkpoint(snapshot_path, 1, 'variable', None, system)
             save_best_checkpoint(snapshot_path, best_path, {
                 'epoch': 1, 'selection_metric': 'map5095',
                 'bd_rate_map_percent': -1.0,
@@ -761,10 +787,11 @@ if __name__ == '__main__':
             resumed_system.cloned_frontend = torch.nn.Linear(1, 1)
             resumed_optimizer = torch.optim.Adam(resumed_system.parameters())
             checkpoint = resume_training(
-                checkpoint_path, 'variable', 42, 8.0,
+                checkpoint_path, 'variable', 42, None,
                 resumed_system, resumed_optimizer, 1)
             assert checkpoint['epoch'] == 1
-            assert checkpoint['lambda_task'] == 8.0
+            assert checkpoint['lambda_task'] is None
+            assert checkpoint['lambda_mapping'] == LAMBDA_MAPPING
             assert checkpoint['trainable_components'] == [
                 'dcvc_rt_dmc', 'yolo_cloned_frontend']
             assert torch.load(best_path, map_location='cpu', weights_only=True)[

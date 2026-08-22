@@ -13,7 +13,8 @@ class MachineBaseSystem(nn.Module):
         self.video_model = video_model
         self.cloned_frontend = cloned_frontend
 
-    def forward(self, ycbcr_frames, target_features, qps, lambda_task):
+    def forward(self, ycbcr_frames, target_features, qps, lambda_task,
+                distortion_weights=None):
         rates = []
         distortions = []
         for frame_index, qp in enumerate(qps):
@@ -24,7 +25,8 @@ class MachineBaseSystem(nn.Module):
                 reconstructed_feature, target_features[:, frame_index]))
             rates.append(rate)
         return (
-            machine_rate_distortion_loss(rates, distortions, lambda_task),
+            machine_rate_distortion_loss(
+                rates, distortions, lambda_task, distortion_weights),
             torch.stack(rates).mean(),
             torch.stack(distortions).mean(),
         )

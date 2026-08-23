@@ -5,3 +5,4 @@ data/
 outputs/
 checkpoints/base_task/
 out/
+kaggle_evaluate_trained_variable_rate.ipynb

@@ -155,6 +155,7 @@ def evaluate_checkpoint(
 
     progress = tqdm(sequences, desc=f"Original SVC Base checkpoint {checkpoint_number}")
     for sequence in progress:
+        sequence_evaluator = DetectionMAP()
         model.frame_buffer = []
         model.flow_buffer = []
         model.MWNet.clear_buffer()
@@ -214,6 +215,14 @@ def evaluate_checkpoint(
                 target_boxes=target_boxes,
                 target_classes=target_classes,
             )
+            sequence_evaluator.add(
+                image_id=image_id,
+                predicted_boxes=detections[:, :4],
+                predicted_scores=detections[:, 4],
+                predicted_classes=detections[:, 5].long(),
+                target_boxes=target_boxes,
+                target_classes=target_classes,
+            )
             image_id += 1
 
         pixels = sequence.frame_count * sequence.width * sequence.height
@@ -226,6 +235,7 @@ def evaluate_checkpoint(
                 "height": sequence.height,
                 "coded_frames": sequence.frame_count,
                 "fps": sequence.fps,
+                **sequence_evaluator.compute(),
             }
         )
 

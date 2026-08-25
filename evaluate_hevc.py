@@ -42,7 +42,7 @@ from dcvc_rt.src.utils.vcm_eval_dataset import AnnotatedVideoDataset, VideoSeque
 
 
 MIN_RATE_POINT_COUNT = 4
-PROGRESS_SCHEMA_VERSION = 1
+PROGRESS_SCHEMA_VERSION = 2
 PROTOCOL = ALL_FRAMES_PROTOCOL
 
 
@@ -346,6 +346,7 @@ def evaluate_reconstructions(
     protocol_key: str,
     progress_label: str,
     detector_batch_size: int,
+    sequence_evaluator: DetectionMAP | None = None,
 ) -> int:
     first_frame = 0 if protocol_key == "all-frames" else 1
     image_id = first_image_id
@@ -405,6 +406,15 @@ def evaluate_reconstructions(
                     target_boxes=target_boxes,
                     target_classes=target_classes,
                 )
+                if sequence_evaluator is not None:
+                    sequence_evaluator.add(
+                        image_id=image_id,
+                        predicted_boxes=detections[:, :4],
+                        predicted_scores=detections[:, 4],
+                        predicted_classes=detections[:, 5].long(),
+                        target_boxes=target_boxes,
+                        target_classes=target_classes,
+                    )
                 image_id += 1
             frame_progress.update(len(batch_indices))
     return image_id
@@ -586,6 +596,7 @@ def evaluate_hevc(args: argparse.Namespace) -> None:
             desc=f"{args.method_name}: x265 QP {qp}",
         )
         for sequence in progress:
+            sequence_evaluator = DetectionMAP()
             with tempfile.TemporaryDirectory(
                 prefix=f"hevc_{safe_name(sequence.name)}_",
                 dir=work_parent,
@@ -662,6 +673,7 @@ def evaluate_hevc(args: argparse.Namespace) -> None:
                     "all-frames",
                     f"{args.method_name}: QP {qp} YOLO {sequence.name}",
                     args.detector_batch_size,
+                    sequence_evaluator,
                 )
                 if args.save_reconstructions:
                     destination = (
@@ -694,6 +706,7 @@ def evaluate_hevc(args: argparse.Namespace) -> None:
                         "width": sequence.width,
                         "height": sequence.height,
                         "coded_frames": coded_frames,
+                        **sequence_evaluator.compute(),
                     }
                 )
                 completed_names.add(sequence.name)

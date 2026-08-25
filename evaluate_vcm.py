@@ -194,6 +194,7 @@ def decode_and_evaluate_sequence(
     first_image_id: int,
     reconstruction_dir: Path | None,
     temporal_evaluators: dict[str, DetectionMAP] | None = None,
+    sequence_evaluator: DetectionMAP | None = None,
 ) -> int:
     """Decode a sequence and add ground-truth detection results to mAP."""
     model.clear_dpb()
@@ -256,6 +257,15 @@ def decode_and_evaluate_sequence(
                 target_boxes=target_boxes,
                 target_classes=target_classes,
             )
+            if sequence_evaluator is not None:
+                sequence_evaluator.add(
+                    image_id=image_id,
+                    predicted_boxes=detections[:, :4],
+                    predicted_scores=detections[:, 4],
+                    predicted_classes=detections[:, 5].long(),
+                    target_boxes=target_boxes,
+                    target_classes=target_classes,
+                )
             if temporal_evaluators is not None:
                 temporal_evaluators[temporal_bin_name(frame_index)].add(
                     image_id=image_id,
@@ -613,6 +623,7 @@ def evaluate_codec(args: argparse.Namespace) -> None:
         next_image_id = 0
         progress = tqdm(sequences, desc=f"{method_name}: base QP {base_qp}")
         for sequence in progress:
+            sequence_evaluator = DetectionMAP()
             bitstream_path = (
                 bitstream_root
                 / f"qp_{base_qp:02d}"
@@ -646,14 +657,16 @@ def evaluate_codec(args: argparse.Namespace) -> None:
                     else None
                 ),
                 temporal_evaluators,
+                sequence_evaluator,
             )
-            sequence_records.append(
-                sequence_rate_record(
+            sequence_records.append({
+                **sequence_rate_record(
                     sequence,
                     bitstream_path,
                     estimated_entropy_bits_by_frame,
-                )
-            )
+                ),
+                **sequence_evaluator.compute(),
+            })
 
         temporal_rates = aggregate_temporal_rate(sequence_records)
         point = {

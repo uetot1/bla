@@ -281,6 +281,40 @@ def install_cloned_frontend(
             f"end ends at layer {last_frontend_layer}"
         )
     prefix = nn.ModuleList(layers[: last_frontend_layer + 1])
+    target_keys = set(prefix.state_dict())
+    if (
+        any(".bn." in key for key in cloned_state_dict)
+        and any(key.endswith(".conv.bias") for key in target_keys)
+    ):
+        fused_state = {
+            key: value
+            for key, value in cloned_state_dict.items()
+            if ".bn." not in key
+        }
+        bases = {
+            key.removesuffix(".bn.running_mean")
+            for key in cloned_state_dict
+            if key.endswith(".bn.running_mean")
+        }
+        for base in bases:
+            scale = cloned_state_dict[f"{base}.bn.weight"] / torch.sqrt(
+                cloned_state_dict[f"{base}.bn.running_var"] + 1e-3
+            )
+            fused_state[f"{base}.conv.weight"] = (
+                cloned_state_dict[f"{base}.conv.weight"]
+                * scale.reshape(-1, 1, 1, 1)
+            )
+            fused_state[f"{base}.conv.bias"] = (
+                cloned_state_dict[f"{base}.bn.bias"]
+                - cloned_state_dict[f"{base}.bn.running_mean"] * scale
+            )
+        cloned_state_dict = fused_state
+    if set(cloned_state_dict) != target_keys:
+        raise RuntimeError(
+            "Cloned YOLOv5 front end does not match the detector: "
+            f"missing={sorted(target_keys - set(cloned_state_dict))}, "
+            f"unexpected={sorted(set(cloned_state_dict) - target_keys)}"
+        )
     prefix.load_state_dict(cloned_state_dict, strict=True)
     prefix.eval()
     for parameter in prefix.parameters():

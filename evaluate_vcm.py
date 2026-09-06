@@ -558,9 +558,13 @@ def evaluate_codec(args: argparse.Namespace) -> None:
                 hierarchical_qp != qp_schedule_policy):
             raise ValueError("All rate points must use the same frame-QP schedule")
         qp_schedule_policy = hierarchical_qp
-        cloned_frontend_state = checkpoint.get(
-            "cloned_frontend_state_dict",
-            checkpoint.get("student_front"),
+        cloned_frontend_state = (
+            None
+            if args.force_pretrained_frontend
+            else checkpoint.get(
+                "cloned_frontend_state_dict",
+                checkpoint.get("student_front"),
+            )
         )
         has_clone = cloned_frontend_state is not None
         if clone_policy is not None and has_clone != clone_policy:
@@ -1060,6 +1064,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--task-model", default="yolov5s")
     parser.add_argument("--yolov5-repo")
     parser.add_argument("--yolov5-weights")
+    parser.add_argument(
+        "--force-pretrained-frontend",
+        action="store_true",
+        help=(
+            "Ignore any cloned_frontend_state_dict/student_front in the checkpoint "
+            "and evaluate with the plain pretrained YOLOv5 frontend, for a "
+            "same-detector fairness check against other methods."
+        ),
+    )
     parser.add_argument("--detector-size", type=int, default=640)
     parser.add_argument("--confidence-threshold", type=float, default=0.001)
     parser.add_argument("--nms-iou-threshold", type=float, default=0.6)

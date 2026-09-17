@@ -45,6 +45,7 @@ from train_base import (
     synchronized_qp,
 )
 
+from multitask_exp.checkpoints import warm_start
 from multitask_exp.data import VimeoSeptupletFlip
 from multitask_exp.frozen_feature import FrozenYoloFeature
 from multitask_exp.lambda_schedule import (
@@ -116,12 +117,12 @@ def build_system(args, config, device):
     if config["alpha_seg"] > 0:
         seg_branch = FrozenYoloFeature(args.seg_weights, args.seg_layer, device)
 
+    clone_source = "pretrained_yolov5s" if det_clone is not None else None
     if args.init_checkpoint:
-        checkpoint = torch.load(args.init_checkpoint, map_location="cpu", weights_only=True)
-        video_model.load_state_dict(get_state_dict(args.init_checkpoint))
-        clone_state = checkpoint.get("cloned_frontend_state_dict")
-        if det_clone is not None and clone_state is not None:
-            det_clone.load_state_dict(clone_state)
+        _, clone_source = warm_start(video_model, det_clone, args.init_checkpoint)
+        if det_clone is None:
+            clone_source = None
+    config["det_clone_init"] = clone_source
 
     system = MultiTaskMachineSystem(
         video_model, det_clone, seg_branch,
@@ -420,9 +421,55 @@ def self_check(args):
         if device.type == "cuda":
             torch.cuda.empty_cache()
 
+    check_warm_start_layouts(args, device)
     print(json.dumps(results, indent=2))
     print("multitask_exp self-check passed: lambda 1-64, frozen seg branch teaches the codec "
-          "without being updated, checkpoints load with evaluate_vcm.load_codec_checkpoint")
+          "without being updated, checkpoints load with evaluate_vcm.load_codec_checkpoint, "
+          "warm start accepts train_base and paper (p_net/student_front) layouts")
+
+
+def check_warm_start_layouts(args, device):
+    import tempfile
+    from multitask_exp.checkpoints import is_lambda_1_64, lambda_evidence, load_raw
+
+    source_dmc = DMC()
+    _, source_clone = make_yolo_teacher_and_clone(args.det_weights, torch.device("cpu"))
+    with torch.no_grad():
+        for parameter in source_clone.parameters():
+            parameter.add_(0.01)
+    layouts = {
+        "paper_like": ({"p_net": {f"module.{k}": v for k, v in source_dmc.state_dict().items()},
+                        "student_front": source_clone.state_dict(), "epoch": 11},
+                       {"train": {"lambda_min": 1.0, "lambda_max": 64.0}}, True),
+        "train_base": ({"state_dict": source_dmc.state_dict(),
+                        "cloned_frontend_state_dict": source_clone.state_dict(),
+                        "lambda_range": (1.0, 64.0), "lambda_mapping": "geometric_qp"},
+                       None, True),
+        "shaped": ({"state_dict": source_dmc.state_dict()},
+                   {"lambda_min": 0.25, "lambda_max": 64.0, "lambda_mapping": "geometric_qp_shaped"},
+                   False),
+    }
+    with tempfile.TemporaryDirectory() as root:
+        for name, (payload, config, expect_1_64) in layouts.items():
+            folder = Path(root) / name
+            folder.mkdir()
+            path = folder / "best.pth.tar"
+            torch.save(payload, path)
+            if config is not None:
+                (folder / "config.json").write_text(json.dumps(config))
+            evidence = lambda_evidence(path, load_raw(path))
+            assert is_lambda_1_64(evidence) == expect_1_64, (name, evidence)
+            target_dmc = DMC()
+            _, target_clone = make_yolo_teacher_and_clone(args.det_weights, torch.device("cpu"))
+            _, clone_source = warm_start(target_dmc, target_clone, path)
+            for key, value in source_dmc.state_dict().items():
+                assert torch.equal(target_dmc.state_dict()[key], value), (name, key)
+            if name == "shaped":
+                assert clone_source == "pretrained_yolov5s"
+            else:
+                assert clone_source.startswith("init_checkpoint:"), (name, clone_source)
+                for key, value in source_clone.state_dict().items():
+                    assert torch.equal(target_clone.state_dict()[key], value), (name, key)
 
 
 def parse_args():

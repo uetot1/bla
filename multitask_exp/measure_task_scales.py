@@ -28,6 +28,7 @@ from svc_machine.feature_loss import feature_mse_loss
 from train_base import INDEX_MAP, VimeoSeptuplet
 
 from multitask_exp.check_task_teachers import cka_by_layer
+from multitask_exp.checkpoints import warm_start
 from multitask_exp.frozen_feature import FrozenYoloFeature
 
 
@@ -40,11 +41,7 @@ def load_models(args, device):
     det_teacher, det_clone = make_yolo_teacher_and_clone(args.det_weights, device)
     clone_source = "pretrained_yolov5s"
     if args.init_checkpoint:
-        video_model.load_state_dict(get_state_dict(args.init_checkpoint))
-        checkpoint = torch.load(args.init_checkpoint, map_location="cpu", weights_only=True)
-        if checkpoint.get("cloned_frontend_state_dict") is not None:
-            det_clone.load_state_dict(checkpoint["cloned_frontend_state_dict"])
-            clone_source = "init_checkpoint"
+        _, clone_source = warm_start(video_model, det_clone, args.init_checkpoint)
     det_clone.eval()
     seg_branch = FrozenYoloFeature(args.seg_weights, args.seg_layer, device)
     return image_model, video_model, det_teacher, det_clone, seg_branch, clone_source

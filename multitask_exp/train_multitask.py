@@ -15,6 +15,7 @@ import argparse
 import hashlib
 import json
 import math
+import random
 import time
 from pathlib import Path
 
@@ -103,7 +104,7 @@ def run_config(args, seg_scale):
 def build_system(args, config, device):
     image_model = DMCI().to(device)
     video_model = DMC().to(device)
-    if not args.self_check:
+    if not (args.self_check or args.random_init):
         image_model.load_state_dict(get_state_dict(args.model_path_i))
         video_model.load_state_dict(get_state_dict(args.model_path_p))
     image_model.eval()
@@ -249,6 +250,7 @@ def validate(model, system, image_model, det_teacher, loader, args, device, rank
 def train_worker(args, device, rank, world_size, local_rank):
     if args.batch_size % world_size:
         raise ValueError("Global batch_size must be divisible by the world size")
+    random.seed(args.seed + rank)
     torch.manual_seed(args.seed + rank)
     seg_scale = resolve_seg_scale(args)
     config = run_config(args, seg_scale)
@@ -300,7 +302,21 @@ def train_worker(args, device, rank, world_size, local_rank):
         if rank == 0:
             print(f"Resumed {last_path} from epoch {checkpoint['epoch']}")
 
+    longest_epoch_seconds = args.epoch_minutes_estimate * 60.0
+    stopped_by_deadline = False
     for epoch in range(start_epoch, args.epochs + 1):
+        if args.deadline_unix:
+            needed = 1.1 * longest_epoch_seconds
+            stop = torch.tensor(int(time.time() + needed > args.deadline_unix), device=device)
+            if world_size > 1:
+                dist.broadcast(stop, 0)
+            if stop.item():
+                stopped_by_deadline = True
+                if rank == 0:
+                    print(f"Deadline: stopping before epoch {epoch} "
+                          f"(needs ~{needed / 60:.0f} min); resume later with --resume")
+                break
+        epoch_started_wall = time.time()
         if sampler is not None:
             sampler.set_epoch(epoch)
         sums = [0.0] * 6  # loss, bpp, d_det, d_seg, grad_norm, batches
@@ -371,6 +387,22 @@ def train_worker(args, device, rank, world_size, local_rank):
             print(json.dumps(record))
         if world_size > 1:
             dist.barrier()
+        longest_epoch_seconds = max(longest_epoch_seconds, time.time() - epoch_started_wall)
+
+    if rank == 0:
+        save_dir.mkdir(parents=True, exist_ok=True)
+        best = min(history, key=lambda r: r["val_total_loss"]) if history else None
+        (save_dir / "status.json").write_text(json.dumps({
+            "run_name": args.run_name,
+            "completed_epochs": len(history),
+            "target_epochs": args.epochs,
+            "finished": len(history) >= args.epochs,
+            "stopped_by_deadline": stopped_by_deadline,
+            "best_epoch_by_val_loss": best["epoch"] if best else None,
+            "best_val_total_loss": best["val_total_loss"] if best else None,
+            "longest_epoch_minutes": longest_epoch_seconds / 60.0,
+            "multitask": config,
+        }, indent=2), encoding="utf-8")
 
 
 def self_check(args):
@@ -505,6 +537,12 @@ def parse_args():
                         help="Stop each epoch early (timing runs); 0 = full epoch")
     parser.add_argument("--max_val_batches", type=int, default=0)
     parser.add_argument("--resume", action="store_true", help="Resume from <save_dir>/<run_name>/last.pth.tar")
+    parser.add_argument("--deadline_unix", type=float, default=0.0,
+                        help="Do not start an epoch that would end after this Unix time (0 = off)")
+    parser.add_argument("--epoch_minutes_estimate", type=float, default=0.0,
+                        help="Epoch duration assumed before the first epoch has been timed")
+    parser.add_argument("--random_init", action="store_true",
+                        help="Testing only: skip loading DCVC-RT weights")
     parser.add_argument("--self_check", action="store_true")
     args = parser.parse_args()
     if not 0.0 <= args.alpha_det <= 1.0:

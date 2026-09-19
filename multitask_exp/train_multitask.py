@@ -88,6 +88,9 @@ def run_config(args, seg_scale):
         "alpha_seg": alpha_seg,
         "seg_scale": seg_scale,
         "det_layer": FRONTEND_LAST_LAYER,
+        # Clone BatchNorm kept in eval mode, as in the paper's training script. Changes the
+        # config so --resume refuses the earlier R0/R2 runs trained with train-mode BN.
+        "det_clone_batchnorm": "frozen_eval" if args.alpha_det > 0 else None,
         "seg_layer": args.seg_layer if alpha_seg > 0 else None,
         "seg_branch": "frozen_pretrained" if alpha_seg > 0 else None,
         "group_size": args.group_size,
@@ -438,6 +441,7 @@ def self_check(args):
         if system.det_clone is not None:
             assert any(p.grad is not None and p.grad.abs().sum() > 0
                        for p in system.det_clone.parameters())
+            check_clone_batchnorm_frozen(system, image_model, det_teacher, frames)
         results[f"alpha_det={alpha_det}"] = {
             "loss": loss.item(), "d_det": nan_to_zero(d_det), "d_seg": d_seg.item(),
             "dmc_grad_abs_sum": dmc_grad,
@@ -455,9 +459,30 @@ def self_check(args):
 
     check_warm_start_layouts(args, device)
     print(json.dumps(results, indent=2))
-    print("multitask_exp self-check passed: lambda 1-64, frozen seg branch teaches the codec "
+    print("multitask_exp self-check passed: lambda 1-64, detection-clone BatchNorm stays in "
+          "eval mode through train(), frozen seg branch teaches the codec "
           "without being updated, checkpoints load with evaluate_vcm.load_codec_checkpoint, "
           "warm start accepts train_base and paper (p_net/student_front) layouts")
+
+
+def check_clone_batchnorm_frozen(system, image_model, det_teacher, frames):
+    batchnorms = [m for m in system.det_clone.modules()
+                  if isinstance(m, torch.nn.modules.batchnorm._BatchNorm)]
+    assert batchnorms, "detection clone has no BatchNorm to freeze"
+    for mode in (True, False, True):
+        system.train(mode)
+        assert all(not bn.training for bn in batchnorms), f"BatchNorm left training after train({mode})"
+    assert all(not p.requires_grad for bn in batchnorms for p in bn.parameters())
+    assert all(bn.weight.grad is None for bn in batchnorms), "BatchNorm affine was updated"
+    before = [bn.running_mean.clone() for bn in batchnorms]
+    with torch.no_grad():
+        forward_group(system, system, image_model, det_teacher, frames, 42, lambda_for_qp(42), 2)
+    assert all(torch.equal(a, bn.running_mean) for a, bn in zip(before, batchnorms)), (
+        "BatchNorm running statistics changed during a training-mode forward")
+    # Same input must now give zero clone loss: no batch-statistics noise floor.
+    sample = frames[:, 0]
+    assert torch.allclose(system.det_clone(sample), extract_teacher_feature(det_teacher, sample),
+                          atol=1e-5), "clone does not match the teacher on identical input"
 
 
 def check_warm_start_layouts(args, device):

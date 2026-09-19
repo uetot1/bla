@@ -98,6 +98,20 @@ Ba đặc điểm sau xuất phát trực tiếp từ kiến trúc đã triển 
 
 ## 4. Thiết kế kiến trúc / pipeline (Kiến trúc A)
 
+![Kiến trúc DCVC-RT-VCM đa tác vụ](multitask_architecture.png)
+
+**Hình.** Kiến trúc đa tác vụ, mở rộng từ kiến trúc một tác vụ của bài RIVF (Fig. 2). Vùng A (backbone DCVC-RT) giữ nguyên không đổi. Vùng B mở rộng từ một nhánh (chỉ detection) thành hai nhánh song song: nhánh detection giữ nguyên kiến trúc gốc nhưng có sửa lỗi BatchNorm (nhãn **FIX**), nhánh segmentation là thành phần hoàn toàn mới (nhãn **MOI**). Nhãn **FZ** (xanh) = đóng băng, **TR** (đỏ) = có thể huấn luyện — quy ước màu giữ nguyên như hình gốc, chỉ đổi icon thành chữ tắt để tương thích font khi biên dịch.
+
+**Ba thay đổi cụ thể so với kiến trúc một tác vụ của bài RIVF:**
+
+| # | Thay đổi | Vì sao (cơ sở ở §2–§3) |
+|---|---|---|
+| 1 (MỚI) | Thêm nhánh segmentation: YOLOv5s-seg tầng 0–17, đóng băng hoàn toàn, không có bản sao huấn luyện | CKA gap lớn nhất tại tầng 17 (§2.4) — điểm hai tác vụ phân kỳ, cần giám sát riêng; đóng băng hoàn toàn để tránh lặp lại lỗi lệch phân phối train/eval |
+| 2 (FIX) | BatchNorm của bản sao detection giữ ở eval mode trong suốt huấn luyện | Phát hiện thực nghiệm: BatchNorm ở train mode làm loss mù với thay đổi độ sáng/tương phản/màu, gây sụp checkpoint (§4, mục "Nhánh detection") |
+| 3 | Loss mở rộng thành tổng có trọng số của hai distortion: `α_det·D_det + α_seg·seg_scale·D_seg`, với `α_det+α_seg=1` | Scalarization đa mục tiêu tuyến tính, mở rộng trực tiếp từ `L=R+λ·w·D` của bài gốc (§3.3) |
+
+Vùng A (I-frame init DMCI, P-frame recurrent DMC, quality-index conditioning, λ(q)) và luồng đánh giá (detector/segmenter gốc đóng băng, dùng chung cho mọi phương pháp so sánh) giữ nguyên không đổi.
+
 **Luồng huấn luyện:**
 
 1. Video gốc (RGB) đi qua DCVC-RT encoder/decoder (DMCI intra + DMC inter) — **kiến trúc không đổi**, chỉ trọng số được tinh chỉnh qua backprop từ loss bên dưới.

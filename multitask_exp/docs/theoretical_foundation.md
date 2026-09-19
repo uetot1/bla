@@ -55,6 +55,33 @@ Kornblith et al. [kornblith2019cka, 2019] đưa ra Centered Kernel Alignment (CK
 
 Kết quả này **không phải lựa chọn tùy ý** — nó trùng khớp với việc bài RIVF vốn đã cắt teacher detection tại tầng 4, và cho một căn cứ định lượng để chọn tầng 17 làm điểm giám sát segmentation.
 
+### 2.5 Cơ sở toán học đã chứng minh: mạng Gray–Wyner và "thông tin chung"
+
+Bốn trụ cột ở §2.1–§2.4 giải thích *vì sao đa tác vụ là hướng đáng thử*, nhưng đều dừng ở mức định tính/kinh nghiệm (empirical). Có một kết quả **đã được chứng minh bằng toán học chặt chẽ**, không phải suy diễn, làm nền trực tiếp cho khẳng định "một bitstream chung có thể tốt hơn hai bitstream riêng":
+
+**Định lý Gray–Wyner** [graywyner1974, 1974]. Cho hai nguồn tin tương quan với nhau, có thể mã hóa chúng bằng một kênh **chung** (common) mang phần thông tin hai nguồn chia sẻ, cộng hai kênh **riêng** (private) mang phần thông tin đặc thù mỗi nguồn. Gray và Wyner chứng minh: tồn tại một lượng thông tin gọi là **Wyner common information**, sao cho khi kênh chung được cấp đúng bằng lượng đó, **tổng tốc độ bit (chung + hai riêng) để đạt một cặp độ méo mục tiêu luôn nhỏ hơn hoặc bằng** tổng tốc độ bit của việc mã hóa hai nguồn hoàn toàn độc lập (hai bitstream riêng biệt, không chia sẻ gì) tại cùng cặp độ méo đó. Mức chênh lệch bằng đúng lượng thông tin chung giữa hai nguồn — càng chung nhiều, càng tiết kiệm nhiều; nếu thông tin chung bằng 0, hai cách mã hóa tốn bit ngang nhau (không có gì để mất khi thử multi-task).
+
+Ánh xạ sang bài toán của khóa luận: hai "nguồn tin" là đặc trưng mà detection cần và đặc trưng mà segmentation cần từ cùng một video; "kênh chung" là bitstream DCVC-RT-VCM; "kênh riêng" (nếu có) là phần bù thêm cho từng tác vụ. Định lý Gray–Wyner cho biết: **nếu** hai tác vụ có thông tin chung dương, **thì** về nguyên tắc luôn tồn tại một cách mã hóa chung đạt tổng rate thấp hơn hoặc bằng simulcast (hai bitstream R0 + R1 tách biệt) — đây là câu trả lời trực tiếp cho "dựa vào đâu để nói multi-task có thể tốt hơn baseline hai bitstream riêng".
+
+Công trình rất gần đây của cùng nhóm với [choi2022svc] — de Andrade, Harell & Bajić [deandrade2026graywyner, 2026], ICLR 2026 — hiện thực hóa chính xác ý tưởng này bằng mạng học được (learnable Gray–Wyner network) cho các cặp tác vụ thị giác máy tính, đo trực tiếp "lossy common information" và cho thấy mã hóa chung nhất quán thắng mã hóa độc lập trên sáu bộ dữ liệu thị giác khi hai tác vụ có thông tin chung dương. Đây là bằng chứng cho thấy lập luận Gray–Wyner áp dụng được cho đúng loại bài toán (vision tasks, mạng nơ-ron sâu), không chỉ cho nguồn tin lý tưởng hóa trong lý thuyết thông tin cổ điển.
+
+**Điều kiện của định lý có đang đúng với dự án không?** Đây là chỗ CKA (§2.4) khớp nối trực tiếp vào: CKA không đo được Wyner common information một cách chính xác, nhưng là một **ước lượng gián tiếp** cho việc hai tác vụ có "thông tin chung" đáng kể hay không tại một tầng cụ thể. Gap CKA chỉ 0.048 tại tầng 4 là bằng chứng gián tiếp rằng thông tin detection cần và thông tin segmentation cần, ở độ sâu đó, phần lớn trùng nhau — tức điều kiện tiên quyết của định lý Gray–Wyner (thông tin chung dương) nhiều khả năng thỏa mãn tại chính điểm mà codec đang bị giám sát.
+
+**Giới hạn phải nói rõ.** Định lý Gray–Wyner là một kết quả *achievability* của lý thuyết thông tin cổ điển: nó chứng minh **tồn tại** một bộ mã hóa/tách mã đạt được mức tiết kiệm đó, với giả định blocklength dài tùy ý và bộ mã hóa tối ưu. Nó **không** chứng minh rằng một mạng nơ-ron cụ thể, huấn luyện bằng SGD với một hàm loss tuyến tính hóa cố định, sẽ *tìm ra* bộ mã hóa đó. Đây chính xác là khoảng cách mà §2.2 đã cảnh báo (negative transfer) — và literature tối ưu đa mục tiêu cho công cụ để đo khoảng cách đó trên chính hệ thống đang có:
+
+- **Sener & Koltun [sener2018mtoo, 2018]** chứng minh: nghiệm chạm đúng biên Pareto (tức đạt gần mức tối ưu mà Gray–Wyner hứa hẹn) chỉ được đảm bảo khi tối ưu bằng thuật toán gradient đa mục tiêu (MGDA); một tổng có trọng số **cố định** như công thức đang dùng trong dự án (`α_det`, `α_seg` cố định) chỉ tiếp cận được biên Pareto khi bài toán **lồi** — mạng sâu không lồi, nên có nguy cơ bỏ lỡ một phần biên Pareto mà lẽ ra đạt được.
+- **Yu et al. [yu2020pcgrad, 2020]** (PCGrad) cho một tiêu chí đo được cụ thể: **độ tương đồng cosine giữa gradient của `D_det` và `D_seg` đối với tham số codec**. Gradient phần lớn dương/gần trực giao → hai tác vụ đang "hợp tác" trong không gian tham số, dự đoán hệ thống tiệm cận gần cận trên Gray–Wyner. Gradient âm nhiều (xung đột) → negative transfer đang xảy ra thật, dự đoán RQ1 sẽ cho chi phí đáng kể.
+
+**Tóm lại — khung ba tầng trả lời "dựa vào đâu":**
+
+1. **Tầng 1 (đã chứng minh bằng toán, không cần đo):** nếu hai tác vụ có thông tin chung dương, một bitstream chung *có thể* đạt tổng rate ≤ simulcast tại cùng cặp độ méo — định lý Gray–Wyner [graywyner1974], hiện thực hóa cho vision bởi [deandrade2026graywyner].
+2. **Tầng 2 (đã đo, dùng làm bằng chứng gián tiếp cho điều kiện của Tầng 1):** CKA gap 0.048 tại tầng 4 cho thấy detection và segmentation gần như dùng chung biểu diễn ở điểm codec đang bị giám sát — điều kiện "thông tin chung dương" nhiều khả năng thỏa.
+3. **Tầng 3 (rủi ro đã biết trước, phải đo để biết mức độ):** tối ưu bằng SGD + trọng số cố định không đảm bảo chạm cận trên của Tầng 1 [sener2018mtoo]; mức chênh lệch thực tế được dự đoán bởi độ xung đột gradient [yu2020pcgrad] và được đo trực tiếp bằng BD-rate thực nghiệm — chính là RQ1.
+
+Nói cách khác: phần "chứng minh được" là **điều kiện** (Tầng 1) và **dấu hiệu điều kiện đó đang đúng** (Tầng 2); phần "không chứng minh được, phải đo" là **mức độ đạt được** trong thực tế huấn luyện (Tầng 3). Đây là giới hạn chuẩn của toàn ngành khi áp lý thuyết thông tin vào mạng sâu, không phải né tránh câu hỏi.
+
+**Một phép đo bổ sung, rẻ, chưa làm:** tính cosine similarity giữa `∇_θ D_det` và `∇_θ D_seg` (θ = tham số codec) trên vài batch, dùng ngay checkpoint R2b hiện có — không cần huấn luyện lại. Đây là bằng chứng độc lập cho Tầng 3, có trước khi đợi đủ kết quả BD-rate.
+
 ---
 
 ## 3. Vì sao chính kiến trúc DCVC-RT-VCM đã có sẵn "chỗ hở" cho đa tác vụ
@@ -97,15 +124,16 @@ Cơ sở cho từng quyết định thiết kế:
 | # | Quyết định thiết kế | Cơ sở lý thuyết / tài liệu | Trạng thái |
 |---|---|---|---|
 | 1 | Độ méo đo trong không gian đặc trưng, không phải pixel | VCM paradigm [vcm]; kế thừa từ bài RIVF | Đã có trong bài gốc |
-| 2 | Một bitstream chung cho detection + segmentation | MTL chia sẻ biểu diễn [caruana1997mtl; ruder2017mtl]; backbone/neck dùng chung của YOLOv5/-seg (fact kiến trúc) | **Giả thuyết cần đo — RQ1** |
+| 2 | Một bitstream chung cho detection + segmentation | **Định lý Gray–Wyner** [graywyner1974; deandrade2026graywyner]: thông tin chung dương ⇒ tổng rate ≤ simulcast, về nguyên tắc; MTL chia sẻ biểu diễn [caruana1997mtl; ruder2017mtl]; backbone/neck dùng chung của YOLOv5/-seg | Điều kiện (thông tin chung dương) có bằng chứng gián tiếp qua CKA — **mức đạt được thật cần đo, RQ1** |
 | 3 | Tầng giám sát detection = tầng 4 | CKA gap nhỏ nhất tại tầng này [kornblith2019cka] | Đã đo, xác nhận |
 | 4 | Tầng giám sát segmentation = tầng 17 | CKA gap lớn nhất tại tầng này | Đã đo, xác nhận |
 | 5 | Nhánh segmentation đóng băng hoàn toàn, không sao chép | Tránh lệch phân phối train/eval (phát hiện thực nghiệm BatchNorm, không suy từ lý thuyết chung) | Xác nhận gián tiếp: run chỉ-segmentation (không sao chép) không sụp như hai run có sao chép |
 | 6 | Feature loss thay cho tối ưu trực tiếp mAP/mask mAP | Distillation / FitNets [hinton2015distill; romero2015fitnets] | Kế thừa chuẩn |
 | 7 | Trọng số tác vụ cố định, không học bất định | Đơn giản hóa có chủ đích so với [kendall2018uncertainty], do giới hạn ngân sách | Giới hạn đã biết, nêu rõ trong luận văn |
-| 8 | Chi phí đa tác vụ trên trục detection = BD(R2) − BD(R0) | Suy trực tiếp từ lý thuyết RD đa mục tiêu: thêm ràng buộc không thể làm nghiệm tối ưu trên một trục tốt hơn nghiệm không ràng buộc (Pareto dominance yếu) | **Phải đo độ lớn — RQ1, đang chạy** |
+| 8 | Chi phí đa tác vụ trên trục detection = BD(R2) − BD(R0) | Cận trên đã chứng minh bởi Gray–Wyner (mục 2 ở trên); độ chênh so với cận trên đó dự đoán được bởi độ xung đột gradient [sener2018mtoo; yu2020pcgrad] | **Phải đo độ lớn — RQ1, đang chạy** |
 | 9 | Chỉ huấn luyện segmentation giữ lại bao nhiêu detection | Không suy được từ lý thuyết — phụ thuộc mức chồng lấp CKA thực tế giữa hai tác vụ | **RQ2, đang chạy** |
-| 10 | So với simulcast (hai bitstream riêng, R0 + R1) | Lý thuyết chỉ cho biết multi-task **có thể** thắng simulcast khi chia sẻ đủ mạnh (§2.2); không đảm bảo | **RQ3, cần trục mask mAP (KITTI-MOTS) trước khi tính** |
+| 10 | So với simulcast (hai bitstream riêng, R0 + R1) | Định lý Gray–Wyner cho biết multi-task **có thể** thắng simulcast khi thông tin chung dương [graywyner1974]; không đảm bảo đạt được bằng SGD [sener2018mtoo] | **RQ3, cần trục mask mAP (KITTI-MOTS) trước khi tính** |
+| 11 | Độ xung đột gradient giữa D_det và D_seg (chưa đo) | Tiêu chí chẩn đoán negative transfer trực tiếp trên tham số codec [yu2020pcgrad] | Chưa đo — rẻ, dùng checkpoint R2b sẵn có, không cần huấn luyện lại |
 
 ---
 
@@ -118,6 +146,9 @@ Lý thuyết ở §2–§4 giải thích **vì sao** hướng đi này có cơ s
 3. **RQ3 — So với simulcast:** cần trục mask mAP (KITTI-MOTS, chưa triển khai) để so tổng bitrate của (bitstream-R0 + bitstream-R1 riêng biệt) với bitstream-R2 chung, tại cùng cặp (mAP, mask-mAP) mục tiêu.
 4. **Độ nhạy với `seg_scale`:** giá trị hiệu chỉnh trên Vimeo có giữ nguyên ý nghĩa khi chuyển sang SFU (miền dữ liệu khác) hay không.
 5. **Mức độ negative transfer thực tế** so với ngưỡng dự đoán bởi CKA — tức là liệu khoảng cách CKA 0.203 tại tầng 17 có tương quan định lượng với độ sụt mAP đo được, hay chỉ mang tính định tính.
+6. **Độ xung đột gradient** giữa `D_det` và `D_seg` đối với tham số codec (§2.5) — dự đoán trực tiếp khoảng cách giữa cận trên Gray–Wyner và kết quả thực đo; chưa thực hiện, không cần huấn luyện lại.
+
+Nói ngắn gọn cho câu hỏi "dựa vào đâu để chứng minh multi-task sẽ tốt": **phần chứng minh được** là định lý Gray–Wyner (§2.5) — nếu hai tác vụ có thông tin chung dương, một bitstream chung *có thể* đạt tổng rate không tệ hơn hai bitstream riêng; **phần đã có bằng chứng đo được** là CKA gap nhỏ tại tầng 4, gợi ý điều kiện đó đang đúng; **phần chưa chứng minh được và phải đo** là liệu quá trình huấn luyện bằng SGD với trọng số cố định có *đạt* được mức đó hay không — đó là nội dung của RQ1.
 
 ---
 
@@ -138,3 +169,7 @@ Các mục bổ sung cho chương lý thuyết này — xem `multitask_exp/docs/
 - Choi, H., & Bajić, I. V. (2022). *Scalable Video Coding for Humans and Machines*. IEEE MMSP 2022. [arXiv:2208.02512](https://arxiv.org/abs/2208.02512).
 - Ge, X., Luo, J., Zhang, X., Xu, T., Lu, G., He, D., Geng, J., Wang, Y., Zhang, J., & Qin, H. (2024). *Task-Aware Encoder Control for Deep Video Compression*. CVPR 2024, 26036–26045.
 - Jia, Z., Li, B., Li, J., Xie, W., Qi, L., Li, H., & Lu, Y. (2025). *Towards Practical Real-Time Neural Video Compression*. CVPR 2025. [arXiv:2502.20762](https://arxiv.org/abs/2502.20762).
+- Gray, R. M., & Wyner, A. D. (1974). *Source Coding for a Simple Network*. Bell System Technical Journal, 53(9), 1681–1721. [doi:10.1002/j.1538-7305.1974.tb02812.x](https://doi.org/10.1002/j.1538-7305.1974.tb02812.x).
+- de Andrade, A., Harell, A., & Bajić, I. V. (2026). *Lossy Common Information in a Learnable Gray-Wyner Network*. ICLR 2026. [arXiv:2601.21424](https://arxiv.org/abs/2601.21424).
+- Sener, O., & Koltun, V. (2018). *Multi-Task Learning as Multi-Objective Optimization*. NeurIPS 2018. [arXiv:1810.04650](https://arxiv.org/abs/1810.04650).
+- Yu, T., Kumar, S., Gupta, A., Levine, S., Hausman, K., & Finn, C. (2020). *Gradient Surgery for Multi-Task Learning*. NeurIPS 2020. [arXiv:2001.06782](https://arxiv.org/abs/2001.06782).

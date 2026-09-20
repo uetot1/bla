@@ -22,22 +22,35 @@ def freeze_batchnorm(module):
 
 
 class MultiTaskMachineSystem(nn.Module):
-    """DCVC-RT DMC trained against a detection clone and a frozen segmentation model.
+    """DCVC-RT DMC trained against a detection branch and a segmentation branch.
 
     L_t = R_t + lambda(q) * w_t * (alpha_det * D_det + alpha_seg * seg_scale * D_seg)
-    A branch whose alpha is 0 is passed as None and skipped entirely. The
-    clone's convolutions train; its BatchNorm layers stay frozen in eval mode.
+    A branch whose alpha is 0 is passed as None and skipped entirely.
+
+    Detection can be supervised two ways, mutually exclusive:
+    - det_clone: a trainable copy of the frontend (BatchNorm frozen in eval mode,
+      convolutions trainable). This is the paper's own recipe, kept for comparison.
+      Measured to still let the codec and clone co-adapt over extended training:
+      the clone's real-detector fidelity degrades even with BatchNorm fixed,
+      because its trainable convolutions can drift toward whatever the codec
+      currently outputs rather than tracking the frozen teacher (see
+      multitask_exp/docs/theoretical_foundation.md, section on clone collapse).
+    - det_frozen: a FrozenYoloFeature, identical in kind to the segmentation
+      branch -- no trainable parameters at all, so there is nothing to drift.
     """
 
     def __init__(self, video_model, det_clone, seg_branch,
-                 alpha_det, alpha_seg, seg_scale):
+                 alpha_det, alpha_seg, seg_scale, det_frozen=None):
         super().__init__()
-        if (alpha_det > 0) != (det_clone is not None):
-            raise ValueError("det_clone must be given exactly when alpha_det > 0")
+        if det_clone is not None and det_frozen is not None:
+            raise ValueError("det_clone and det_frozen are mutually exclusive")
+        if (alpha_det > 0) != (det_clone is not None or det_frozen is not None):
+            raise ValueError("exactly one of det_clone/det_frozen must be given when alpha_det > 0")
         if (alpha_seg > 0) != (seg_branch is not None):
             raise ValueError("seg_branch must be given exactly when alpha_seg > 0")
         self.video_model = video_model
         self.det_clone = det_clone
+        self.det_frozen = det_frozen
         self.seg_branch = seg_branch
         self.alpha_det = float(alpha_det)
         self.alpha_seg = float(alpha_seg)
@@ -60,9 +73,10 @@ class MultiTaskMachineSystem(nn.Module):
                 ycbcr_frames[:, index], qp)
             reconstructed = ycbcr2rgb(reconstructed_ycbcr)
             task_term = reconstructed.new_zeros(())
-            if self.det_clone is not None:
+            det_module = self.det_clone if self.det_clone is not None else self.det_frozen
+            if det_module is not None:
                 det_distortion = feature_mse_loss(
-                    self.det_clone(reconstructed), det_targets[:, index])
+                    det_module(reconstructed), det_targets[:, index])
                 det_distortions.append(det_distortion)
                 task_term = task_term + self.alpha_det * det_distortion
             if self.seg_branch is not None:

@@ -83,14 +83,16 @@ def resolve_seg_scale(args):
 
 def run_config(args, seg_scale):
     alpha_seg = 1.0 - args.alpha_det
+    det_active = args.alpha_det > 0
     config = {
         "alpha_det": args.alpha_det,
         "alpha_seg": alpha_seg,
         "seg_scale": seg_scale,
         "det_layer": FRONTEND_LAST_LAYER,
+        "det_mode": args.det_mode if det_active else None,
         # Clone BatchNorm kept in eval mode, as in the paper's training script. Changes the
         # config so --resume refuses the earlier R0/R2 runs trained with train-mode BN.
-        "det_clone_batchnorm": "frozen_eval" if args.alpha_det > 0 else None,
+        "det_clone_batchnorm": "frozen_eval" if det_active and args.det_mode == "clone" else None,
         "seg_layer": args.seg_layer if alpha_seg > 0 else None,
         "seg_branch": "frozen_pretrained" if alpha_seg > 0 else None,
         "group_size": args.group_size,
@@ -114,9 +116,15 @@ def build_system(args, config, device):
     for parameter in image_model.parameters():
         parameter.requires_grad_(False)
 
-    det_teacher = det_clone = None
+    det_teacher = det_clone = det_frozen = None
     if config["alpha_det"] > 0:
-        det_teacher, det_clone = make_yolo_teacher_and_clone(args.det_weights, device)
+        if config["det_mode"] == "frozen":
+            # No trainable parameters at all -- structurally identical to the
+            # segmentation branch, which does not suffer the clone-drift collapse
+            # measured for det_mode="clone" (see MultiTaskMachineSystem docstring).
+            det_frozen = FrozenYoloFeature(args.det_weights, FRONTEND_LAST_LAYER, device)
+        else:
+            det_teacher, det_clone = make_yolo_teacher_and_clone(args.det_weights, device)
     seg_branch = None
     if config["alpha_seg"] > 0:
         seg_branch = FrozenYoloFeature(args.seg_weights, args.seg_layer, device)
@@ -130,7 +138,8 @@ def build_system(args, config, device):
 
     system = MultiTaskMachineSystem(
         video_model, det_clone, seg_branch,
-        config["alpha_det"], config["alpha_seg"], config["seg_scale"]).to(device)
+        config["alpha_det"], config["alpha_seg"], config["seg_scale"],
+        det_frozen=det_frozen).to(device)
     return image_model, det_teacher, system
 
 
@@ -146,9 +155,15 @@ def forward_group(model, system, image_model, det_teacher, sequences, base_qp,
     rgb_frames = sequences[:, 1:]
     ycbcr_frames = torch.stack(
         [rgb2ycbcr(rgb_frames[:, index]) for index in range(group_size)], dim=1)
-    det_targets = torch.stack(
-        [extract_teacher_feature(det_teacher, rgb_frames[:, index]) for index in range(group_size)],
-        dim=1) if system.det_clone is not None else None
+    if system.det_clone is not None:
+        det_targets = torch.stack(
+            [extract_teacher_feature(det_teacher, rgb_frames[:, index]) for index in range(group_size)],
+            dim=1)
+    elif system.det_frozen is not None:
+        det_targets = torch.stack(
+            [system.det_frozen.target(rgb_frames[:, index]) for index in range(group_size)], dim=1)
+    else:
+        det_targets = None
     seg_targets = torch.stack(
         [system.seg_branch.target(rgb_frames[:, index]) for index in range(group_size)],
         dim=1) if system.seg_branch is not None else None
@@ -172,6 +187,8 @@ def frozen_components(system):
     names = ["dmci"]
     if system.det_clone is not None:
         names += ["yolo_teacher", "yolo_backend"]
+    elif system.det_frozen is not None:
+        names.append("yolov5_detection_pretrained")
     if system.seg_branch is not None:
         names.append("yolov5_seg_pretrained")
     return names
@@ -425,8 +442,12 @@ def self_check(args):
 
     frames = torch.rand(1, 3, 3, args.crop_size, args.crop_size, device=device)
     results = {}
-    for alpha_det in (0.0, 0.5):
+    # (alpha_det, det_mode): 0.0/clone=R1 (seg only, det_mode irrelevant), 0.5/clone=R2-style
+    # (measured to collapse -- kept only so the self-check still covers that code path),
+    # 1.0/frozen=R3 (detection only, no trainable params), 0.5/frozen=R4 (both branches frozen).
+    for alpha_det, det_mode in ((0.0, "clone"), (0.5, "clone"), (1.0, "frozen"), (0.5, "frozen")):
         args.alpha_det = alpha_det
+        args.det_mode = det_mode
         config = run_config(args, 1.0)
         image_model, det_teacher, system = build_system(args, config, device)
         system.train()
@@ -437,12 +458,20 @@ def self_check(args):
         dmc_grad = sum(p.grad.abs().sum().item() for p in system.video_model.parameters()
                        if p.grad is not None)
         assert dmc_grad > 0, "codec received no gradient"
-        assert all(p.grad is None for p in system.seg_branch.parameters()), "seg branch was updated"
+        if system.seg_branch is not None:
+            assert all(p.grad is None for p in system.seg_branch.parameters()), "seg branch was updated"
         if system.det_clone is not None:
             assert any(p.grad is not None and p.grad.abs().sum() > 0
                        for p in system.det_clone.parameters())
             check_clone_batchnorm_frozen(system, image_model, det_teacher, frames)
-        results[f"alpha_det={alpha_det}"] = {
+        if system.det_frozen is not None:
+            assert not any(p.requires_grad for p in system.det_frozen.parameters())
+            assert all(p.grad is None for p in system.det_frozen.parameters()), \
+                "frozen detection branch was updated"
+            sample = frames[:, 0]
+            assert torch.allclose(system.det_frozen(sample), system.det_frozen.target(sample),
+                                  atol=1e-5), "frozen detection branch is not deterministic"
+        results[f"alpha_det={alpha_det},det_mode={det_mode}"] = {
             "loss": loss.item(), "d_det": nan_to_zero(d_det), "d_seg": d_seg.item(),
             "dmc_grad_abs_sum": dmc_grad,
         }
@@ -539,6 +568,11 @@ def parse_args():
     parser.add_argument("--det_weights", default="./yolov5s.pt")
     parser.add_argument("--seg_weights", default="multitask_exp/weights/yolov5s-seg.pt")
     parser.add_argument("--seg_layer", type=int, default=17)
+    parser.add_argument("--det_mode", choices=("clone", "frozen"), default="clone",
+                        help="clone = paper's trainable-clone recipe (measured to drift over "
+                             "extended training, see docs/theoretical_foundation.md); "
+                             "frozen = no trainable detection parameters at all, like the "
+                             "segmentation branch")
     parser.add_argument("--alpha_det", type=float, default=0.5,
                         help="alpha_seg = 1 - alpha_det; 1.0 = R0, 0.0 = R1, 0.5 = R2")
     parser.add_argument("--seg_scale", type=float,

@@ -235,6 +235,11 @@ def reduce_sums(values, device, world_size):
     return tensor.tolist()
 
 
+def has_det_branch(system):
+    """True for either detection supervision mode (trainable clone or frozen)."""
+    return system.det_clone is not None or system.det_frozen is not None
+
+
 def nan_to_zero(value):
     value = float(value)
     return 0.0 if math.isnan(value) else value
@@ -262,7 +267,7 @@ def validate(model, system, image_model, det_teacher, loader, args, device, rank
     return {
         "val_total_loss": loss / batches,
         "val_bpp": rate / batches,
-        "val_feature_mse_det": d_det / batches if system.det_clone is not None else None,
+        "val_feature_mse_det": d_det / batches if has_det_branch(system) else None,
         "val_feature_mse_seg": d_seg / batches if system.seg_branch is not None else None,
     }
 
@@ -375,7 +380,7 @@ def train_worker(args, device, rank, world_size, local_rank):
             "epoch": epoch,
             "total_loss": loss / batches,
             "bpp": rate / batches,
-            "feature_mse_det": d_det / batches if system.det_clone is not None else None,
+            "feature_mse_det": d_det / batches if has_det_branch(system) else None,
             "feature_mse_seg": d_seg / batches if system.seg_branch is not None else None,
             "grad_norm": grad_norm / batches,
             "train_seconds_rank0": elapsed,

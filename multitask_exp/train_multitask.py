@@ -308,6 +308,7 @@ def train_worker(args, device, rank, world_size, local_rank):
     model.train()
     parameters = tuple(p for p in system.parameters() if p.requires_grad)
     optimizer = torch.optim.Adam(parameters, lr=args.learning_rate)
+    scaler = torch.amp.GradScaler("cuda", enabled=args.amp)
 
     save_dir = Path(args.save_dir) / args.run_name
     last_path = save_dir / "last.pth.tar"
@@ -361,13 +362,16 @@ def train_worker(args, device, rank, world_size, local_rank):
             base_qp = synchronized_qp("variable", 0, device, rank, world_size)
             sequences = sequences.to(device, non_blocking=True)
             optimizer.zero_grad(set_to_none=True)
-            loss, rate, d_det, d_seg = forward_group(
-                model, system, image_model, det_teacher, sequences, base_qp,
-                lambda_for_qp(base_qp), args.group_size)
-            loss.backward()
+            with torch.autocast(device_type=device.type, dtype=torch.float16, enabled=args.amp):
+                loss, rate, d_det, d_seg = forward_group(
+                    model, system, image_model, det_teacher, sequences, base_qp,
+                    lambda_for_qp(base_qp), args.group_size)
+            scaler.scale(loss).backward()
+            scaler.unscale_(optimizer)  # clip on true gradients, as in the paper script
             grad_norm = torch.nn.utils.clip_grad_norm_(
-                parameters, args.grad_clip, error_if_nonfinite=True)
-            optimizer.step()
+                parameters, args.grad_clip, error_if_nonfinite=not args.amp)
+            scaler.step(optimizer)
+            scaler.update()
             system.video_model.clear_dpb()
             for slot, value in enumerate((loss, rate, d_det, d_seg, grad_norm, 1.0)):
                 sums[slot] += nan_to_zero(value)
@@ -392,6 +396,7 @@ def train_worker(args, device, rank, world_size, local_rank):
             "seconds_per_global_batch": elapsed / (batches / world_size),
             "global_batches": int(batches / world_size),
             "full_epoch_batches": len(loader),
+            "amp": bool(args.amp),
         }
         record.update(validate(model, system, image_model, det_teacher,
                                validation_loader, args, device, rank, world_size))
@@ -750,6 +755,11 @@ def parse_args():
                         help="Do not start an epoch that would end after this Unix time (0 = off)")
     parser.add_argument("--epoch_minutes_estimate", type=float, default=0.0,
                         help="Epoch duration assumed before the first epoch has been timed")
+    parser.add_argument("--amp", action="store_true",
+                        help="Mixed precision (fp16 autocast + GradScaler), as in the paper script. "
+                             "Off by default so R3x/R4x keep their behaviour. Needs CUDA and "
+                             "--rate_mode exact: only the exact path keeps entropy coding in fp32, "
+                             "the surrogate path lives in dcvc_rt/ which this project must not edit.")
     parser.add_argument("--random_init", action="store_true",
                         help="Testing only: skip loading DCVC-RT weights")
     parser.add_argument("--diagnose_rates", action="store_true",
@@ -759,6 +769,11 @@ def parse_args():
     args = parser.parse_args()
     if not 0.0 <= args.alpha_det <= 1.0:
         raise ValueError("--alpha_det must be in [0, 1]")
+    if args.amp and args.rate_mode != "exact":
+        raise ValueError("--amp requires --rate_mode exact (the surrogate path would price "
+                         "entropy in fp16, which the paper script never does)")
+    if args.amp and not args.device.startswith("cuda"):
+        raise ValueError("--amp requires a CUDA device")
     return args
 
 

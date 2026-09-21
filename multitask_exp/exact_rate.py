@@ -32,8 +32,12 @@ def forward_train_exact(model, x, qp):
 
     z_hat = model.quantize_ste(z).clamp(-128.0, 127.0)
     index = torch.full((z_hat.shape[0],), int(qp), dtype=torch.long, device=z_hat.device)
-    z_prob = model.bit_estimator_z(z_hat + 0.5, index) - model.bit_estimator_z(z_hat - 0.5, index)
-    z_bits = -torch.log2(z_prob.clamp_min(1e-9)).sum()
+    # The paper script prices entropy in fp32 even under AMP (its gaussian_bits/z_bits both
+    # open `autocast(enabled=False)`); outside autocast these guards are a no-op.
+    with torch.autocast(device_type=z_hat.device.type, enabled=False):
+        z32 = z_hat.float()
+        z_prob = model.bit_estimator_z(z32 + 0.5, index) - model.bit_estimator_z(z32 - 0.5, index)
+        z_bits = -torch.log2(z_prob.clamp_min(1e-9)).sum()
 
     common_params = model.res_prior_param_decoder(z_hat, ctx_t)
     y_scaled, q_dec, scales, means = model.separate_prior_for_video_encoding(common_params, y)
@@ -45,7 +49,8 @@ def forward_train_exact(model, x, qp):
     for stage, mask in enumerate((mask0, mask1)):
         residual = (y_scaled - means) * mask
         symbols = model.quantize_ste(residual).clamp(-128.0, 127.0)
-        y_bits = y_bits + model.get_gaussian_bits(symbols, scales, mask)
+        with torch.autocast(device_type=symbols.device.type, enabled=False):
+            y_bits = y_bits + model.get_gaussian_bits(symbols.float(), scales.float(), mask.float())
         y_hat = y_hat + (symbols + means) * mask
         if stage == 0:
             scales, means = model.y_spatial_prior(torch.cat((y_hat, common_params), dim=1)).chunk(2, 1)

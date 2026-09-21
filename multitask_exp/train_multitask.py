@@ -432,61 +432,92 @@ def train_worker(args, device, rank, world_size, local_rank):
         }, indent=2), encoding="utf-8")
 
 
-@torch.no_grad()
+def codec_grad_vector(system):
+    """Flattened d(loss)/d(codec parameters), the quantity optimisation actually follows."""
+    parts = [p.grad.detach().reshape(-1) for p in system.video_model.parameters()
+             if p.grad is not None]
+    return torch.cat(parts) if parts else None
+
+
 def diagnose_rates(args):
     """Price the SAME warm-started model with both rate estimators. Trains nothing.
 
     Meant for the paper checkpoint: if the unrounded-latent surrogate and the exact
     rounded-symbol cost disagree on it, continued training with the surrogate is
     optimising a different objective from the one the checkpoint came from.
+
+    The two estimators can agree on bpp to a fraction of a percent while pointing the
+    gradient in a visibly different direction, so this measures BOTH: the forward bpp
+    and, for the same batch, the cosine and norm ratio between the two gradients over
+    the codec parameters. Only the gradient enters an optimiser step, so a bpp ratio
+    near 1.0 on its own is NOT evidence against the rate hypothesis.
     """
     device = torch.device(args.device)
     config = run_config(args, resolve_seg_scale(args))
     image_model, det_teacher, system = build_system(args, config, device)
-    system.eval()
+    system.train()  # the gradient we care about is the training-time one (BN stays frozen)
     dataset = VimeoSeptupletFlip(
         args.dataset, args.crop_size, args.group_size,
         list_name=args.validation_list, random_crop=False, hflip=False)
     loader = DataLoader(dataset, batch_size=args.batch_size, shuffle=False,
                         num_workers=args.workers)
-    table = {qp: {"surrogate": [], "exact": []} for qp in VALIDATION_QPS}
+    table = {qp: {"surrogate": [], "exact": [], "grad": []} for qp in VALIDATION_QPS}
     for batch_index, sequences in enumerate(tqdm(loader, desc="rate diagnosis")):
         if batch_index >= args.diagnose_batches:
             break
         qp = VALIDATION_QPS[batch_index % len(VALIDATION_QPS)]
         sequences = sequences.to(device)
+        grads = {}
         for mode in ("surrogate", "exact"):
             system.rate_mode = mode
+            system.zero_grad(set_to_none=True)
             loss, rate, d_det, d_seg = forward_group(
                 system, system, image_model, det_teacher, sequences, qp,
                 lambda_for_qp(qp), args.group_size)
+            loss.backward()
+            grads[mode] = codec_grad_vector(system)
             system.video_model.clear_dpb()
             table[qp][mode].append((loss.item(), rate.item(), nan_to_zero(d_det), nan_to_zero(d_seg)))
+        system.zero_grad(set_to_none=True)
+        g_s, g_e = grads["surrogate"], grads["exact"]
+        if g_s is not None and g_e is not None and g_e.norm() > 0:
+            table[qp]["grad"].append((
+                torch.nn.functional.cosine_similarity(g_s, g_e, dim=0).item(),
+                (g_s.norm() / g_e.norm()).item()))
+        del grads, g_s, g_e
 
     def mean(rows, column):
         return sum(row[column] for row in rows) / len(rows)
 
     summary = {}
     print(f"{'qp':>4} {'batches':>8} {'bpp surrogate':>14} {'bpp exact':>10} {'exact/surr':>11} "
-          f"{'loss surr':>10} {'loss exact':>11}")
+          f"{'loss surr':>10} {'loss exact':>11} {'cos(grad)':>10} {'|gs|/|ge|':>10}")
     for qp, modes in table.items():
         if not modes["exact"]:
             continue
         s_rate, e_rate = mean(modes["surrogate"], 1), mean(modes["exact"], 1)
+        cosine = mean(modes["grad"], 0) if modes["grad"] else float("nan")
+        norm_ratio = mean(modes["grad"], 1) if modes["grad"] else float("nan")
         summary[qp] = {
             "batches": len(modes["exact"]),
             "bpp_surrogate": s_rate, "bpp_exact": e_rate,
             "loss_surrogate": mean(modes["surrogate"], 0), "loss_exact": mean(modes["exact"], 0),
             "d_det": mean(modes["exact"], 2), "d_seg": mean(modes["exact"], 3),
+            "grad_cosine": cosine, "grad_norm_ratio": norm_ratio,
         }
         print(f"{qp:>4} {len(modes['exact']):>8} {s_rate:>14.5f} {e_rate:>10.5f} {e_rate / s_rate:>11.3f} "
-              f"{summary[qp]['loss_surrogate']:>10.5f} {summary[qp]['loss_exact']:>11.5f}")
+              f"{summary[qp]['loss_surrogate']:>10.5f} {summary[qp]['loss_exact']:>11.5f} "
+              f"{cosine:>10.5f} {norm_ratio:>10.3f}")
+    finite = [v["grad_cosine"] for v in summary.values() if math.isfinite(v["grad_cosine"])]
     overall = {
         "bpp_surrogate": sum(v["bpp_surrogate"] for v in summary.values()) / len(summary),
         "bpp_exact": sum(v["bpp_exact"] for v in summary.values()) / len(summary),
+        "grad_cosine": sum(finite) / len(finite) if finite else float("nan"),
     }
     print(f"mean over QPs: surrogate {overall['bpp_surrogate']:.5f}  exact {overall['bpp_exact']:.5f}  "
           f"(paper's own val_bpp at its best epoch: 0.1205)")
+    print(f"mean cos(grad) between the two estimators: {overall['grad_cosine']:.5f}  "
+          f"(1.0 = same direction; read THIS, not the bpp ratio, to judge the rate hypothesis)")
     out = Path(args.save_dir) / "rate_diagnosis.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps({"per_qp": summary, "overall": overall, "config": config}, indent=2))

@@ -33,11 +33,11 @@ from dcvc_rt.src.models.image_model import DMCI
 from dcvc_rt.src.models.video_model import DMC
 from dcvc_rt.src.utils.evaluation_protocol import (ALL_FRAMES_PROTOCOL, dataset_summary,
                                                    evaluation_id, state_dict_sha256)
-from dcvc_rt.src.utils.transforms import rgb2ycbcr, ycbcr2rgb
+from dcvc_rt.src.utils.transforms import ycbcr2rgb
 from dcvc_rt.src.utils.vcm_bitstream import VCMSequenceReader
 from dcvc_rt.src.utils.vcm_eval_dataset import AnnotatedVideoDataset
 from evaluate_vcm import (QP_OFFSETS, aggregate_rate, encode_sequence, load_codec_checkpoint,
-                          safe_name, sequence_rate_record, use_two_entropy_coders)
+                          safe_name, sequence_rate_record)
 from multitask_exp.mask_map import MaskMAP
 
 MIN_RATE_POINT_COUNT = 4

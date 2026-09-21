@@ -4,6 +4,8 @@ from torch import nn
 from dcvc_rt.src.utils.transforms import ycbcr2rgb
 from svc_machine.feature_loss import feature_mse_loss
 
+from multitask_exp.exact_rate import forward_train_exact
+
 
 def freeze_batchnorm(module):
     """Keep every BatchNorm in eval mode with frozen affine parameters.
@@ -29,19 +31,23 @@ class MultiTaskMachineSystem(nn.Module):
 
     Detection can be supervised two ways, mutually exclusive:
     - det_clone: a trainable copy of the frontend (BatchNorm frozen in eval mode,
-      convolutions trainable). This is the paper's own recipe, kept for comparison.
-      Measured to still let the codec and clone co-adapt over extended training:
-      the clone's real-detector fidelity degrades even with BatchNorm fixed,
-      because its trainable convolutions can drift toward whatever the codec
-      currently outputs rather than tracking the frozen teacher (see
-      multitask_exp/docs/theoretical_foundation.md, section on clone collapse).
+      convolutions trainable), the recipe of the paper's training script.
     - det_frozen: a FrozenYoloFeature, identical in kind to the segmentation
-      branch -- no trainable parameters at all, so there is nothing to drift.
+      branch -- no trainable parameters at all.
+
+    Measured on SFU Class C/D with real bitstreams, the two are indistinguishable
+    in detection quality (R0b ~ R3, R2b ~ R4): a drifting clone is NOT what breaks
+    detection in the continued-training runs. What predicts the damage is the
+    weight on the detection feature loss, and the most concrete recipe difference
+    left from the paper's script is the rate term -- see rate_mode below and
+    multitask_exp/exact_rate.py.
     """
 
     def __init__(self, video_model, det_clone, seg_branch,
-                 alpha_det, alpha_seg, seg_scale, det_frozen=None):
+                 alpha_det, alpha_seg, seg_scale, det_frozen=None, rate_mode="surrogate"):
         super().__init__()
+        if rate_mode not in ("surrogate", "exact"):
+            raise ValueError(f"unknown rate_mode {rate_mode!r}")
         if det_clone is not None and det_frozen is not None:
             raise ValueError("det_clone and det_frozen are mutually exclusive")
         if (alpha_det > 0) != (det_clone is not None or det_frozen is not None):
@@ -55,6 +61,9 @@ class MultiTaskMachineSystem(nn.Module):
         self.alpha_det = float(alpha_det)
         self.alpha_seg = float(alpha_seg)
         self.seg_scale = float(seg_scale)
+        # "surrogate": DMC.forward_train prices the unrounded latents (what train_base.py and
+        # R0-R4 used). "exact": prices the rounded symbols like the paper's training script.
+        self.rate_mode = rate_mode
         if self.det_clone is not None:
             freeze_batchnorm(self.det_clone)
 
@@ -69,8 +78,12 @@ class MultiTaskMachineSystem(nn.Module):
                 distortion_weights):
         terms, rates, det_distortions, seg_distortions = [], [], [], []
         for index, qp in enumerate(qps):
-            reconstructed_ycbcr, rate = self.video_model.forward_train(
-                ycbcr_frames[:, index], qp)
+            if self.rate_mode == "exact":
+                reconstructed_ycbcr, rate = forward_train_exact(
+                    self.video_model, ycbcr_frames[:, index], qp)
+            else:
+                reconstructed_ycbcr, rate = self.video_model.forward_train(
+                    ycbcr_frames[:, index], qp)
             reconstructed = ycbcr2rgb(reconstructed_ycbcr)
             task_term = reconstructed.new_zeros(())
             det_module = self.det_clone if self.det_clone is not None else self.det_frozen

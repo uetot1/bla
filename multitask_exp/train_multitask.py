@@ -47,6 +47,7 @@ from train_base import (
 )
 
 from multitask_exp.checkpoints import warm_start
+from multitask_exp.exact_rate import forward_train_exact
 from multitask_exp.data import VimeoSeptupletFlip
 from multitask_exp.frozen_feature import FrozenYoloFeature
 from multitask_exp.lambda_schedule import (
@@ -90,6 +91,7 @@ def run_config(args, seg_scale):
         "seg_scale": seg_scale,
         "det_layer": FRONTEND_LAST_LAYER,
         "det_mode": args.det_mode if det_active else None,
+        "rate_mode": args.rate_mode,
         # Clone BatchNorm kept in eval mode, as in the paper's training script. Changes the
         # config so --resume refuses the earlier R0/R2 runs trained with train-mode BN.
         "det_clone_batchnorm": "frozen_eval" if det_active and args.det_mode == "clone" else None,
@@ -119,9 +121,9 @@ def build_system(args, config, device):
     det_teacher = det_clone = det_frozen = None
     if config["alpha_det"] > 0:
         if config["det_mode"] == "frozen":
-            # No trainable parameters at all -- structurally identical to the
-            # segmentation branch, which does not suffer the clone-drift collapse
-            # measured for det_mode="clone" (see MultiTaskMachineSystem docstring).
+            # No trainable detection parameters at all -- structurally identical to the
+            # segmentation branch. Measured to give the same real detection quality as
+            # det_mode="clone" (R3 ~ R0b, R4 ~ R2b), so it is a simplification, not a fix.
             det_frozen = FrozenYoloFeature(args.det_weights, FRONTEND_LAST_LAYER, device)
         else:
             det_teacher, det_clone = make_yolo_teacher_and_clone(args.det_weights, device)
@@ -139,7 +141,7 @@ def build_system(args, config, device):
     system = MultiTaskMachineSystem(
         video_model, det_clone, seg_branch,
         config["alpha_det"], config["alpha_seg"], config["seg_scale"],
-        det_frozen=det_frozen).to(device)
+        det_frozen=det_frozen, rate_mode=config["rate_mode"]).to(device)
     return image_model, det_teacher, system
 
 
@@ -430,6 +432,67 @@ def train_worker(args, device, rank, world_size, local_rank):
         }, indent=2), encoding="utf-8")
 
 
+@torch.no_grad()
+def diagnose_rates(args):
+    """Price the SAME warm-started model with both rate estimators. Trains nothing.
+
+    Meant for the paper checkpoint: if the unrounded-latent surrogate and the exact
+    rounded-symbol cost disagree on it, continued training with the surrogate is
+    optimising a different objective from the one the checkpoint came from.
+    """
+    device = torch.device(args.device)
+    config = run_config(args, resolve_seg_scale(args))
+    image_model, det_teacher, system = build_system(args, config, device)
+    system.eval()
+    dataset = VimeoSeptupletFlip(
+        args.dataset, args.crop_size, args.group_size,
+        list_name=args.validation_list, random_crop=False, hflip=False)
+    loader = DataLoader(dataset, batch_size=args.batch_size, shuffle=False,
+                        num_workers=args.workers)
+    table = {qp: {"surrogate": [], "exact": []} for qp in VALIDATION_QPS}
+    for batch_index, sequences in enumerate(tqdm(loader, desc="rate diagnosis")):
+        if batch_index >= args.diagnose_batches:
+            break
+        qp = VALIDATION_QPS[batch_index % len(VALIDATION_QPS)]
+        sequences = sequences.to(device)
+        for mode in ("surrogate", "exact"):
+            system.rate_mode = mode
+            loss, rate, d_det, d_seg = forward_group(
+                system, system, image_model, det_teacher, sequences, qp,
+                lambda_for_qp(qp), args.group_size)
+            system.video_model.clear_dpb()
+            table[qp][mode].append((loss.item(), rate.item(), nan_to_zero(d_det), nan_to_zero(d_seg)))
+
+    def mean(rows, column):
+        return sum(row[column] for row in rows) / len(rows)
+
+    summary = {}
+    print(f"{'qp':>4} {'batches':>8} {'bpp surrogate':>14} {'bpp exact':>10} {'exact/surr':>11} "
+          f"{'loss surr':>10} {'loss exact':>11}")
+    for qp, modes in table.items():
+        if not modes["exact"]:
+            continue
+        s_rate, e_rate = mean(modes["surrogate"], 1), mean(modes["exact"], 1)
+        summary[qp] = {
+            "batches": len(modes["exact"]),
+            "bpp_surrogate": s_rate, "bpp_exact": e_rate,
+            "loss_surrogate": mean(modes["surrogate"], 0), "loss_exact": mean(modes["exact"], 0),
+            "d_det": mean(modes["exact"], 2), "d_seg": mean(modes["exact"], 3),
+        }
+        print(f"{qp:>4} {len(modes['exact']):>8} {s_rate:>14.5f} {e_rate:>10.5f} {e_rate / s_rate:>11.3f} "
+              f"{summary[qp]['loss_surrogate']:>10.5f} {summary[qp]['loss_exact']:>11.5f}")
+    overall = {
+        "bpp_surrogate": sum(v["bpp_surrogate"] for v in summary.values()) / len(summary),
+        "bpp_exact": sum(v["bpp_exact"] for v in summary.values()) / len(summary),
+    }
+    print(f"mean over QPs: surrogate {overall['bpp_surrogate']:.5f}  exact {overall['bpp_exact']:.5f}  "
+          f"(paper's own val_bpp at its best epoch: 0.1205)")
+    out = Path(args.save_dir) / "rate_diagnosis.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps({"per_qp": summary, "overall": overall, "config": config}, indent=2))
+    print("saved", out)
+
+
 def self_check(args):
     """Runs without Vimeo or DCVC-RT weights (randomly initialised DMC)."""
     for qp, expected in ((0, 1.0), (21, 4.0), (42, 16.0), (63, 64.0)):
@@ -450,9 +513,13 @@ def self_check(args):
     # (alpha_det, det_mode): 0.0/clone=R1 (seg only, det_mode irrelevant), 0.5/clone=R2-style
     # (measured to collapse -- kept only so the self-check still covers that code path),
     # 1.0/frozen=R3 (detection only, no trainable params), 0.5/frozen=R4 (both branches frozen).
-    for alpha_det, det_mode in ((0.0, "clone"), (0.5, "clone"), (1.0, "frozen"), (0.5, "frozen")):
+    combinations = ((0.0, "clone", "surrogate"), (0.5, "clone", "surrogate"),
+                    (1.0, "frozen", "surrogate"), (0.5, "frozen", "surrogate"),
+                    (1.0, "frozen", "exact"), (0.5, "frozen", "exact"))
+    for alpha_det, det_mode, rate_mode in combinations:
         args.alpha_det = alpha_det
         args.det_mode = det_mode
+        args.rate_mode = rate_mode
         config = run_config(args, 1.0)
         image_model, det_teacher, system = build_system(args, config, device)
         system.train()
@@ -476,7 +543,7 @@ def self_check(args):
             sample = frames[:, 0]
             assert torch.allclose(system.det_frozen(sample), system.det_frozen.target(sample),
                                   atol=1e-5), "frozen detection branch is not deterministic"
-        results[f"alpha_det={alpha_det},det_mode={det_mode}"] = {
+        results[f"alpha_det={alpha_det},det_mode={det_mode},rate_mode={rate_mode}"] = {
             "loss": loss.item(), "d_det": nan_to_zero(d_det), "d_seg": d_seg.item(),
             "dmc_grad_abs_sum": dmc_grad,
         }
@@ -491,12 +558,53 @@ def self_check(args):
         if device.type == "cuda":
             torch.cuda.empty_cache()
 
+    check_exact_rate_matches_paper(device)
     check_warm_start_layouts(args, device)
     print(json.dumps(results, indent=2))
-    print("multitask_exp self-check passed: lambda 1-64, detection-clone BatchNorm stays in "
+    print("multitask_exp self-check passed: exact-rate forward matches the paper script "
+          "(values and gradients), lambda 1-64, detection-clone BatchNorm stays in "
           "eval mode through train(), frozen seg branch teaches the codec "
           "without being updated, checkpoints load with evaluate_vcm.load_codec_checkpoint, "
           "warm start accepts train_base and paper (p_net/student_front) layouts")
+
+
+def check_exact_rate_matches_paper(device):
+    """forward_train_exact must reproduce the paper script's p_frame_forward: values and gradients."""
+    import copy
+    from multitask_exp.paper_reference import p_frame_forward as paper_forward
+
+    torch.manual_seed(3)
+    reference_model = DMC().to(device).eval()
+    with torch.no_grad():
+        for parameter in reference_model.parameters():
+            parameter.add_(0.02 * torch.randn_like(parameter))
+    ours_model = copy.deepcopy(reference_model)
+    first = torch.rand(1, 3, 64, 64, device=device)
+    ref = torch.rand(1, 3, 64, 64, device=device)
+
+    def prime(model):
+        model.clear_dpb()
+        model.set_curr_poc(0)
+        model.add_ref_frame(None, ref)
+
+    for qp in (0, 21, 42, 63):
+        prime(reference_model); prime(ours_model)
+        paper_x, paper_bpp = paper_forward(reference_model, first, qp)
+        ours_x, ours_bpp = forward_train_exact(ours_model, first, qp)
+        assert torch.allclose(paper_x, ours_x, atol=1e-5), f"x_hat differs at qp {qp}"
+        assert math.isclose(paper_bpp.mean().item(), ours_bpp.item(), rel_tol=1e-5), f"bpp differs at qp {qp}"
+
+    prime(reference_model); prime(ours_model)
+    reference_model.zero_grad(); ours_model.zero_grad()
+    paper_x, paper_bpp = paper_forward(reference_model, first, 21)
+    (paper_bpp.mean() + paper_x.pow(2).mean()).backward()
+    ours_x, ours_bpp = forward_train_exact(ours_model, first, 21)
+    (ours_bpp + ours_x.pow(2).mean()).backward()
+    difference = sum((a.grad - b.grad).norm() ** 2 for a, b in
+                     zip(reference_model.parameters(), ours_model.parameters())
+                     if a.grad is not None) ** 0.5
+    scale = sum(a.grad.norm() ** 2 for a in reference_model.parameters() if a.grad is not None) ** 0.5
+    assert difference / scale < 1e-4, f"gradients differ: {(difference / scale).item():.2e}"
 
 
 def check_clone_batchnorm_frozen(system, image_model, det_teacher, frames):
@@ -574,10 +682,13 @@ def parse_args():
     parser.add_argument("--seg_weights", default="multitask_exp/weights/yolov5s-seg.pt")
     parser.add_argument("--seg_layer", type=int, default=17)
     parser.add_argument("--det_mode", choices=("clone", "frozen"), default="clone",
-                        help="clone = paper's trainable-clone recipe (measured to drift over "
-                             "extended training, see docs/theoretical_foundation.md); "
-                             "frozen = no trainable detection parameters at all, like the "
-                             "segmentation branch")
+                        help="clone = the paper script's trainable copy of layers 0-4; "
+                             "frozen = no trainable detection parameters, like the segmentation "
+                             "branch. Measured equivalent in real detection quality.")
+    parser.add_argument("--rate_mode", choices=("surrogate", "exact"), default="surrogate",
+                        help="surrogate = DMC.forward_train (rate on unrounded latents, used by "
+                             "R0-R4); exact = rate on the rounded symbols, as in the script that "
+                             "trained the paper checkpoint")
     parser.add_argument("--alpha_det", type=float, default=0.5,
                         help="alpha_seg = 1 - alpha_det; 1.0 = R0, 0.0 = R1, 0.5 = R2")
     parser.add_argument("--seg_scale", type=float,
@@ -607,6 +718,9 @@ def parse_args():
                         help="Epoch duration assumed before the first epoch has been timed")
     parser.add_argument("--random_init", action="store_true",
                         help="Testing only: skip loading DCVC-RT weights")
+    parser.add_argument("--diagnose_rates", action="store_true",
+                        help="price the warm-started model with both rate estimators, no training")
+    parser.add_argument("--diagnose_batches", type=int, default=120)
     parser.add_argument("--self_check", action="store_true")
     args = parser.parse_args()
     if not 0.0 <= args.alpha_det <= 1.0:
@@ -621,6 +735,9 @@ def main():
         return
     if not args.dataset:
         raise ValueError("--dataset is required")
+    if args.diagnose_rates:
+        diagnose_rates(args)
+        return
     device, rank, world_size, local_rank = setup_distributed(args.device)
     try:
         train_worker(args, device, rank, world_size, local_rank)

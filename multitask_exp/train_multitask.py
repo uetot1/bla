@@ -309,6 +309,12 @@ def train_worker(args, device, rank, world_size, local_rank):
     parameters = tuple(p for p in system.parameters() if p.requires_grad)
     optimizer = torch.optim.Adam(parameters, lr=args.learning_rate)
     scaler = torch.amp.GradScaler("cuda", enabled=args.amp)
+    if args.resume_optimizer:
+        if not args.init_checkpoint:
+            raise ValueError("--resume_optimizer requires --init_checkpoint")
+        if args.resume:
+            raise ValueError("--resume already restores the optimizer of this run")
+        restore_optimizer_state(optimizer, parameters, args.init_checkpoint, scaler)
 
     save_dir = Path(args.save_dir) / args.run_name
     last_path = save_dir / "last.pth.tar"
@@ -397,6 +403,7 @@ def train_worker(args, device, rank, world_size, local_rank):
             "global_batches": int(batches / world_size),
             "full_epoch_batches": len(loader),
             "amp": bool(args.amp),
+            "resume_optimizer": bool(args.resume_optimizer),
         }
         record.update(validate(model, system, image_model, det_teacher,
                                validation_loader, args, device, rank, world_size))
@@ -532,6 +539,59 @@ def diagnose_rates(args):
     print("saved", out)
 
 
+def restore_optimizer_state(optimizer, parameters, checkpoint_path, scaler=None):
+    """Give Adam back the moments the init checkpoint was still carrying.
+
+    The paper trained one continuous run: at epoch 10 its Adam had 341 tensors' worth of
+    warm first/second moments, and every later step was scaled by them. Every run here
+    instead builds a fresh Adam, whose first step is m/sqrt(v) ~ sign(g) -- magnitude ~lr
+    no matter how small the gradient of a converged model is. Over the ~1750 steps of one
+    epoch that is a large, sign-consistent shove. The paper's own run loses 5.9% mask
+    BD-rate over 19 epochs past its best; the runs here lose 44-73% in one or two.
+
+    Positions are verified by tensor shape, so a layout mismatch aborts instead of
+    silently pairing the wrong moments with the wrong weights.
+    """
+    raw = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
+    saved = raw.get("optimizer")
+    if saved is None:
+        raise ValueError(f"{checkpoint_path} has no optimizer state to restore")
+    order = [index for group in saved["param_groups"] for index in group["params"]]
+    saved_state = saved["state"]
+
+    target = optimizer.state_dict()
+    restored, skipped = {}, 0
+    for position, parameter in enumerate(parameters):
+        if position >= len(order):
+            break
+        entry = saved_state.get(order[position])
+        if entry is None:
+            skipped += 1
+            continue
+        moments = [value for value in entry.values() if torch.is_tensor(value) and value.dim()]
+        mismatched = [tuple(value.shape) for value in moments if value.shape != parameter.shape]
+        if mismatched:
+            raise ValueError(
+                f"Optimizer layout mismatch at position {position}: checkpoint moment has shape "
+                f"{mismatched[0]}, this parameter has {tuple(parameter.shape)}. The saved "
+                "optimizer does not describe this model, refusing to restore.")
+        restored[position] = entry
+    if not restored:
+        raise ValueError("No optimizer moments matched this model")
+    target["state"] = restored
+    optimizer.load_state_dict(target)
+
+    message = (f"Restored Adam moments for {len(restored)}/{len(parameters)} parameters "
+               f"from {checkpoint_path}")
+    if skipped:
+        message += f" ({skipped} had no saved state)"
+    if scaler is not None and raw.get("scaler") is not None:
+        scaler.load_state_dict(raw["scaler"])
+        message += "; GradScaler state restored too"
+    print(message)
+    return len(restored)
+
+
 def save_warm_start(args):
     """Round-trip the init checkpoint through the exact path a run uses, training nothing.
 
@@ -639,12 +699,62 @@ def self_check(args):
 
     check_exact_rate_matches_paper(device)
     check_warm_start_layouts(args, device)
+    check_optimizer_restore(device)
     print(json.dumps(results, indent=2))
     print("multitask_exp self-check passed: exact-rate forward matches the paper script "
           "(values and gradients), lambda 1-64, detection-clone BatchNorm stays in "
           "eval mode through train(), frozen seg branch teaches the codec "
           "without being updated, checkpoints load with evaluate_vcm.load_codec_checkpoint, "
-          "warm start accepts train_base and paper (p_net/student_front) layouts")
+          "warm start accepts train_base and paper (p_net/student_front) layouts, "
+          "Adam moments restore exactly and a mismatched layout is refused")
+
+
+def check_optimizer_restore(device):
+    """Moments must come back exactly, and a wrong layout must abort rather than mispair."""
+    import tempfile
+
+    torch.manual_seed(7)
+    model = torch.nn.Sequential(torch.nn.Linear(4, 6), torch.nn.Linear(6, 3)).to(device)
+    parameters = tuple(model.parameters())
+
+    # Two groups, as in the paper's script: the second one never gets a step, so it saves
+    # no state -- exactly the layout measured in the paper checkpoint (341 of 386).
+    donor = torch.optim.Adam([{"params": parameters[:2]}, {"params": parameters[2:]}], lr=1e-3)
+    for _ in range(3):
+        donor.zero_grad()
+        model(torch.rand(5, 4, device=device)).pow(2).mean().backward()
+        for parameter in parameters[2:]:
+            parameter.grad = None
+        donor.step()
+    expected = {position: {key: value.clone() if torch.is_tensor(value) else value
+                           for key, value in entry.items()}
+                for position, entry in donor.state_dict()["state"].items()}
+    assert len(expected) == 2, expected.keys()
+
+    with tempfile.TemporaryDirectory() as folder:
+        path = Path(folder) / "donor.pth"
+        torch.save({"optimizer": donor.state_dict(), "scaler": None}, path)
+
+        target = torch.optim.Adam(parameters, lr=1e-3)
+        restored = restore_optimizer_state(target, parameters, path)
+        assert restored == 2, restored
+        state = target.state_dict()["state"]
+        for position, entry in expected.items():
+            for key, value in entry.items():
+                if torch.is_tensor(value):
+                    assert torch.equal(state[position][key], value), (position, key)
+                else:
+                    assert state[position][key] == value, (position, key)
+
+        # A model whose tensors do not line up must be refused, not silently mispaired.
+        other = torch.nn.Sequential(torch.nn.Linear(9, 9), torch.nn.Linear(9, 2)).to(device)
+        try:
+            restore_optimizer_state(torch.optim.Adam(other.parameters(), lr=1e-3),
+                                    tuple(other.parameters()), path)
+        except ValueError as error:
+            assert "layout mismatch" in str(error), error
+        else:
+            raise AssertionError("a mismatched model must refuse the saved optimizer")
 
 
 def check_exact_rate_matches_paper(device):
@@ -805,6 +915,11 @@ def parse_args():
     parser.add_argument("--diagnose_rates", action="store_true",
                         help="price the warm-started model with both rate estimators, no training")
     parser.add_argument("--diagnose_batches", type=int, default=120)
+    parser.add_argument("--resume_optimizer", action="store_true",
+                        help="Warm start Adam's moments from --init_checkpoint too, not just the "
+                             "weights. The paper's run carried warm moments from step 1 onward; "
+                             "a fresh Adam takes a ~lr-sized sign-like step regardless of how "
+                             "small a converged model's gradients are. Off by default.")
     parser.add_argument("--save_warm_start",
                         help="Build the system from --init_checkpoint, train NOTHING, and save "
                              "the epoch-0 checkpoint here. Evaluating this file must reproduce "

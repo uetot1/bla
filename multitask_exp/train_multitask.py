@@ -532,6 +532,40 @@ def diagnose_rates(args):
     print("saved", out)
 
 
+def save_warm_start(args):
+    """Round-trip the init checkpoint through the exact path a run uses, training nothing.
+
+    Every run goes warm_start -> build_system -> evaluation_payload -> atomic_save, and every
+    run so far came out damaged on both task axes. A silent parameter loss anywhere on that
+    path would produce exactly that, whatever the loss function was. Evaluating this file and
+    the init checkpoint must give identical numbers; if they differ, the objective is not on
+    trial at all -- the plumbing is.
+    """
+    device = torch.device(args.device)
+    if not args.init_checkpoint:
+        raise ValueError("--save_warm_start requires --init_checkpoint")
+    config = run_config(args, resolve_seg_scale(args))
+    _, _, system = build_system(args, config, device)
+    payload = evaluation_payload(system, config, epoch=0)
+    path = Path(args.save_warm_start)
+    atomic_save(payload, path)
+
+    source = torch.load(args.init_checkpoint, map_location="cpu", weights_only=False)
+    source_state = next((source[key] for key in ("dmc_state_dict", "p_net", "model_state_dict",
+                                                 "state_dict") if key in source), None)
+    saved = system.video_model.state_dict()
+    missing = sorted(set(saved) - set(source_state or {}))
+    identical = sum(1 for key in saved
+                    if key in (source_state or {})
+                    and torch.equal(saved[key].cpu(), source_state[key].cpu()))
+    print(f"saved {path}")
+    print(f"codec tensors: {len(saved)} total, {identical} bit-identical to the init checkpoint, "
+          f"{len(missing)} absent from it")
+    if missing:
+        print("absent keys (these came from the pretrained DCVC-RT weights, not the init "
+              f"checkpoint): {missing[:8]}{' ...' if len(missing) > 8 else ''}")
+
+
 def self_check(args):
     """Runs without Vimeo or DCVC-RT weights (randomly initialised DMC)."""
     for qp, expected in ((0, 1.0), (21, 4.0), (42, 16.0), (63, 64.0)):
@@ -771,6 +805,12 @@ def parse_args():
     parser.add_argument("--diagnose_rates", action="store_true",
                         help="price the warm-started model with both rate estimators, no training")
     parser.add_argument("--diagnose_batches", type=int, default=120)
+    parser.add_argument("--save_warm_start",
+                        help="Build the system from --init_checkpoint, train NOTHING, and save "
+                             "the epoch-0 checkpoint here. Evaluating this file must reproduce "
+                             "the init checkpoint's own numbers exactly; anything else means the "
+                             "warm-start/save/load path loses parameters, and every trained run "
+                             "that went through it is void.")
     parser.add_argument("--self_check", action="store_true")
     args = parser.parse_args()
     if not 0.0 <= args.alpha_det <= 1.0:
@@ -787,6 +827,9 @@ def main():
     args = parse_args()
     if args.self_check:
         self_check(args)
+        return
+    if args.save_warm_start:
+        save_warm_start(args)
         return
     if not args.dataset:
         raise ValueError("--dataset is required")

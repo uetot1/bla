@@ -19,7 +19,7 @@ class FrozenYoloFeature(nn.Module):
         self.layer = layer
         for parameter in self.model.parameters():
             parameter.requires_grad_(False)
-        self.model.eval()
+        self.eval()  # the wrapper's own flag too, so `.training` is False before any .train() call
 
     def train(self, mode=True):
         # BatchNorm must keep its pretrained running statistics.

@@ -582,8 +582,14 @@ def self_check(args):
             sample = frames[:, 0]
             assert torch.allclose(system.det_frozen(sample), system.det_frozen.target(sample),
                                   atol=1e-5), "frozen detection branch is not deterministic"
+        def reported(value):
+            # A branch that is switched off yields NaN; report it as null, not as 0.0,
+            # so the output never reads like a branch that trained to zero error.
+            value = float(value)
+            return value if math.isfinite(value) else None
+
         results[f"alpha_det={alpha_det},det_mode={det_mode},rate_mode={rate_mode}"] = {
-            "loss": loss.item(), "d_det": nan_to_zero(d_det), "d_seg": d_seg.item(),
+            "loss": loss.item(), "d_det": reported(d_det), "d_seg": reported(d_seg),
             "dmc_grad_abs_sum": dmc_grad,
         }
 

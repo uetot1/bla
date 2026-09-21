@@ -300,7 +300,10 @@ def train_worker(args, device, rank, world_size, local_rank):
                                    num_workers=args.workers,
                                    pin_memory=device.type == "cuda", drop_last=True)
 
-    model = DistributedDataParallel(system, device_ids=[local_rank], output_device=local_rank) \
+    # broadcast_buffers=False matches the paper script: every BatchNorm here is frozen in
+    # eval mode, so re-broadcasting buffers from rank 0 each forward only costs bandwidth.
+    model = DistributedDataParallel(system, device_ids=[local_rank], output_device=local_rank,
+                                    broadcast_buffers=False, find_unused_parameters=False) \
         if world_size > 1 else system
     model.train()
     parameters = tuple(p for p in system.parameters() if p.requires_grad)

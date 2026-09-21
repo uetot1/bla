@@ -341,6 +341,8 @@ def train_worker(args, device, rank, world_size, local_rank):
 
     longest_epoch_seconds = args.epoch_minutes_estimate * 60.0
     stopped_by_deadline = False
+    save_at_steps = {int(value) for value in args.save_at_steps.split(",") if value.strip()}
+    global_step = (start_epoch - 1) * len(loader)
     for epoch in range(start_epoch, args.epochs + 1):
         if args.deadline_unix:
             needed = 1.1 * longest_epoch_seconds
@@ -378,6 +380,13 @@ def train_worker(args, device, rank, world_size, local_rank):
                 parameters, args.grad_clip, error_if_nonfinite=not args.amp)
             scaler.step(optimizer)
             scaler.update()
+            global_step += 1
+            if global_step in save_at_steps and rank == 0:
+                # Damage curve: the runs here lose most of their quality inside one epoch,
+                # so epoch-end checkpoints are far too coarse to see where it happens.
+                atomic_save(evaluation_payload(system, config, epoch),
+                            save_dir / f"step_{global_step:06d}.pth")
+                print(f"saved step {global_step}", flush=True)
             system.video_model.clear_dpb()
             for slot, value in enumerate((loss, rate, d_det, d_seg, grad_norm, 1.0)):
                 sums[slot] += nan_to_zero(value)
@@ -915,6 +924,10 @@ def parse_args():
     parser.add_argument("--diagnose_rates", action="store_true",
                         help="price the warm-started model with both rate estimators, no training")
     parser.add_argument("--diagnose_batches", type=int, default=120)
+    parser.add_argument("--save_at_steps", default="",
+                        help="Comma-separated optimiser-step counts at which to also save a "
+                             "checkpoint, e.g. 50,200,1000. Epoch-end checkpoints are too coarse "
+                             "to locate damage that lands inside the first epoch.")
     parser.add_argument("--resume_optimizer", action="store_true",
                         help="Warm start Adam's moments from --init_checkpoint too, not just the "
                              "weights. The paper's run carried warm moments from step 1 onward; "

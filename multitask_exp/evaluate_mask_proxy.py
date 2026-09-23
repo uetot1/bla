@@ -90,6 +90,30 @@ class SegPredictor:
         return masks.bool(), detections[:, 4], detections[:, 5].long()
 
 
+GROUND_TRUTH = ("instance masks predicted by the frozen segmentation model on the "
+                "uncompressed source frames (proxy reference, not human labels)")
+COMPARISON_SCOPE = "end-to-end VCM system, segmentation axis"
+
+
+def segmentation_config(predictor, args):
+    """The fingerprint BD-rate compares between an anchor and a candidate.
+
+    Built in one place so every producer of mask results -- this script and the HEVC
+    anchor beside it -- writes byte-identical metadata; `validate_compatible_results`
+    refuses the pair otherwise.
+    """
+    return {
+        "task_model": "yolov5s-seg",
+        "weights_id": state_dict_sha256(predictor.model.state_dict()),
+        "input_size": int(args.detector_size),
+        "confidence_threshold": float(args.confidence_threshold),
+        "nms_iou_threshold": float(args.nms_iou_threshold),
+        "max_detections": int(args.max_detections),
+        "class_count": len(predictor.names),
+        "mask_space": "detector letterbox input, identical transform for both sides",
+    }
+
+
 @torch.inference_mode()
 def decode_and_evaluate_masks(image_model, model, predictor, evaluator, dataset, sequence,
                               bitstream_path, device, first_image_id, sequence_evaluator=None):
@@ -159,16 +183,7 @@ def evaluate(args):
     predictor = SegPredictor(args.seg_weights, device, args.detector_size,
                              args.confidence_threshold, args.nms_iou_threshold,
                              args.max_detections)
-    seg_config = {
-        "task_model": "yolov5s-seg",
-        "weights_id": state_dict_sha256(predictor.model.state_dict()),
-        "input_size": int(args.detector_size),
-        "confidence_threshold": float(args.confidence_threshold),
-        "nms_iou_threshold": float(args.nms_iou_threshold),
-        "max_detections": int(args.max_detections),
-        "class_count": len(predictor.names),
-        "mask_space": "detector letterbox input, identical transform for both sides",
-    }
+    seg_config = segmentation_config(predictor, args)
 
     method_name = safe_name(args.method_name)
     bitstream_root = Path(args.bitstream_dir) / method_name
@@ -229,13 +244,12 @@ def evaluate(args):
             "color_pipeline": "RGB -> full-range BT.709 YCbCr444 -> codec -> RGB",
         },
         "protocol": ALL_FRAMES_PROTOCOL,
-        "comparison_scope": "end-to-end VCM system, segmentation axis",
+        "comparison_scope": COMPARISON_SCOPE,
         "rate_source": "actual sequence-container bytes including headers",
         "rate_points": len(points),
         "task": "instance_segmentation",
         "task_model": "yolov5s-seg",
-        "ground_truth": ("instance masks predicted by the frozen segmentation model on the "
-                         "uncompressed source frames (proxy reference, not human labels)"),
+        "ground_truth": GROUND_TRUTH,
         "evaluation_id": evaluation_id(dataset, sequences),
         "dataset": dataset_summary(dataset, sequences),
         "detector_config": seg_config,

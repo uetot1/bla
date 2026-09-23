@@ -153,6 +153,8 @@ def evaluate(args):
     image_model = DMCI().to(device).eval()
     load_codec_checkpoint(image_model, args.image_ckpt, state_key="dmci_state_dict")
     image_model.update(force_zero_thres=args.force_zero_thres)
+    if args.codec_precision == "fp16":
+        image_model.half()
 
     predictor = SegPredictor(args.seg_weights, device, args.detector_size,
                              args.confidence_threshold, args.nms_iou_threshold,
@@ -175,6 +177,8 @@ def evaluate(args):
         model = DMC().to(device).eval()
         checkpoint = load_codec_checkpoint(model, video_path)
         model.update(force_zero_thres=args.force_zero_thres)
+        if args.codec_precision == "fp16":
+            model.half()
         hierarchical_qp = bool(checkpoint.get("hierarchical_qp", True))
 
         evaluator = MaskMAP()
@@ -221,6 +225,7 @@ def evaluate(args):
             "base_qps": list(args.qps),
             "qp_offsets": list(QP_OFFSETS if points[0]["hierarchical_qp"] else (0,) * 8),
             "reset_interval": args.reset_interval,
+            "codec_precision": args.codec_precision,
             "color_pipeline": "RGB -> full-range BT.709 YCbCr444 -> codec -> RGB",
         },
         "protocol": ALL_FRAMES_PROTOCOL,
@@ -302,6 +307,9 @@ def parse_args():
     parser.add_argument("--nms-iou-threshold", type=float, default=0.45)
     parser.add_argument("--max-detections", type=int, default=300)
     parser.add_argument("--reset-interval", type=int, default=32)
+    parser.add_argument("--codec-precision", choices=("fp32", "fp16"), default="fp32",
+                        help="evaluate_vcm.py runs the box axis at fp16; match it with fp16 "
+                             "so both axes price the same checkpoint at the same bitrate")
     parser.add_argument("--force-zero-thres", type=float, default=None)
     parser.add_argument("--max-sequences", type=int, default=None)
     parser.add_argument("--keep-bitstreams", action="store_true",

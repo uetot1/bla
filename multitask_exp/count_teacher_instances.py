@@ -84,17 +84,25 @@ def main(args):
                 det, frames, load, args.crop, generator))
 
     if args.manifest:
-        manifest = json.loads(Path(args.manifest).read_text(encoding="utf-8"))
-        data_dir = Path(args.data_dir or Path(args.manifest).parent)
+        from dcvc_rt.src.utils.vcm_eval_dataset import AnnotatedVideoDataset
+
+        dataset = AnnotatedVideoDataset(args.data_dir or Path(args.manifest).parent,
+                                        args.manifest)
+        sequences = list(dataset)
+        per_sequence = max(1, args.samples // max(1, len(sequences)))
         frames = []
-        for entry in manifest["sequences"]:
-            paths = [data_dir / name for name in entry["frames"]] if "frames" in entry else []
-            frames.extend(paths[:: max(1, len(paths) // max(1, args.samples // len(manifest["sequences"])))])
-        frames = [path for path in frames if path.is_file()][: args.samples]
-        print(f"\nBo danh gia: {len(frames)} khung, KHONG cat (dung kich thuoc that)")
+        for sequence in sequences:
+            step = max(1, sequence.frame_count // per_sequence)
+            frames.extend(list(sequence.frame_paths)[::step][:per_sequence])
+        frames = frames[: args.samples]
+        print(f"\nBo danh gia: {len(frames)} khung tu {len(sequences)} chuoi, "
+              "KHONG cat (dung kich thuoc that)")
         if frames:
-            report["eval_seg"] = summarise("Danh gia · teacher seg", *measure(
+            report["eval_seg"] = summarise("Danh gia \u00b7 teacher seg", *measure(
                 seg, frames, load, 0, generator))
+            if det is not None:
+                report["eval_det"] = summarise("Danh gia \u00b7 teacher det", *measure(
+                    det, frames, load, 0, generator))
 
     if report:
         print("\nDoc ket qua: neu crop Vimeo gan nhu khong co instance nao, loss segmentation "

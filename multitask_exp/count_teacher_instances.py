@@ -24,6 +24,43 @@ import torch
 from multitask_exp.evaluate_mask_proxy import SegPredictor, to_uint8_rgb
 
 
+class BoxPredictor:
+    """The detection teacher has no mask head, so it needs its own forward.
+
+    SegPredictor unpacks (prediction, proto) and calls process_mask; a plain YOLOv5
+    returns (prediction, features) instead, and process_mask then fails on the shape.
+    Same letterbox, same thresholds, boxes instead of masks -- measure() only counts.
+    """
+
+    def __init__(self, weights, device, size, confidence, nms_iou, max_detections):
+        from models.experimental import attempt_load
+
+        self.model = attempt_load(weights, device=device, fuse=True).eval()
+        for parameter in self.model.parameters():
+            parameter.requires_grad_(False)
+        self.device = device
+        self.size = int(size)
+        self.confidence = float(confidence)
+        self.nms_iou = float(nms_iou)
+        self.max_detections = int(max_detections)
+        self.stride = int(self.model.stride.max())
+
+    @torch.inference_mode()
+    def __call__(self, image):
+        from utils.augmentations import letterbox
+        from utils.general import non_max_suppression
+
+        padded, _, _ = letterbox(image, new_shape=self.size, stride=self.stride, auto=False)
+        tensor = torch.from_numpy(np.ascontiguousarray(padded)).to(self.device)
+        tensor = tensor.permute(2, 0, 1).float().div_(255.0).unsqueeze(0)
+        prediction = self.model(tensor)
+        if isinstance(prediction, (list, tuple)):
+            prediction = prediction[0]
+        detections = non_max_suppression(prediction, self.confidence, self.nms_iou,
+                                         max_det=self.max_detections)[0]
+        return detections[:, :4], detections[:, 4], detections[:, 5].long()
+
+
 def summarise(name, counts, scores):
     counts = np.asarray(counts, dtype=np.float64)
     empty = float((counts == 0).mean() * 100.0)
@@ -65,7 +102,7 @@ def main(args):
 
     seg = SegPredictor(args.seg_weights, device, args.detector_size, args.confidence_threshold,
                        args.nms_iou_threshold, args.max_detections)
-    det = SegPredictor(args.det_weights, device, args.detector_size, args.confidence_threshold,
+    det = BoxPredictor(args.det_weights, device, args.detector_size, args.confidence_threshold,
                        args.nms_iou_threshold, args.max_detections) if args.det_weights else None
 
     report = {}
@@ -123,6 +160,15 @@ def self_check(args):
     images = [torch.rand(3, 300, 400) for _ in range(3)]
     counts, scores = measure(predictor, images, lambda image: image, 256, generator)
     assert len(counts) == len(images), counts
+    if args.det_weights:
+        # The detection teacher took the wrong path once and only failed on real frames,
+        # so exercise it here too.
+        boxes = BoxPredictor(args.det_weights, device, args.detector_size,
+                             args.confidence_threshold, args.nms_iou_threshold,
+                             args.max_detections)
+        box_counts, _ = measure(boxes, images, lambda image: image, 256, generator)
+        assert len(box_counts) == len(images), box_counts
+        print(f"  teacher detection chay duoc: {box_counts} hop")
     assert all(isinstance(value, int) and value >= 0 for value in counts), counts
     assert len(scores) <= len(images), scores
     assert sum(counts) == 0 or scores, "instances found but no confidence recorded"

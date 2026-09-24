@@ -284,7 +284,8 @@ def train_worker(args, device, rank, world_size, local_rank):
     image_model, det_teacher, system = build_system(args, config, device)
 
     dataset = VimeoSeptupletFlip(
-        args.dataset, args.crop_size, args.group_size, hflip=args.hflip)
+        args.dataset, args.crop_size, args.group_size, hflip=args.hflip,
+        list_name=args.train_list or "sep_trainlist.txt")
     validation_dataset = VimeoSeptupletFlip(
         args.dataset, args.crop_size, args.group_size,
         list_name=args.validation_list, random_crop=False, hflip=False)
@@ -413,6 +414,8 @@ def train_worker(args, device, rank, world_size, local_rank):
             "full_epoch_batches": len(loader),
             "amp": bool(args.amp),
             "resume_optimizer": bool(args.resume_optimizer),
+            "train_list": args.train_list or "sep_trainlist.txt",
+            "train_clips": len(dataset),
         }
         record.update(validate(model, system, image_model, det_teacher,
                                validation_loader, args, device, rank, world_size))
@@ -906,6 +909,10 @@ def parse_args():
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--validation_list", default="sep_testlist.txt")
+    parser.add_argument("--train_list", default="",
+                        help="Clip list for training; an absolute path overrides the dataset "
+                             "root, so a filtered list can live outside a read-only mount. "
+                             "Empty keeps sep_trainlist.txt.")
     parser.add_argument("--max_train_batches", type=int, default=0,
                         help="Stop each epoch early (timing runs); 0 = full epoch")
     parser.add_argument("--max_val_batches", type=int, default=0)

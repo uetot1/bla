@@ -65,7 +65,8 @@ def x264_encode(encoder, sequence, input_yuv, bitstream_path, qp, bit_depth, chr
         "--keyint", str(sequence.frame_count),
         "--min-keyint", str(sequence.frame_count),
         "--no-scenecut",
-        "--repeat-headers",
+        # No --repeat-headers: that is an x265 option. x264 writes SPS/PPS with every IDR,
+        # and this structure has exactly one, so the stream is self-contained anyway.
         "--log-level", "warning",
         *extra_arguments,
         "--output", str(bitstream_path),
@@ -351,12 +352,43 @@ def parse_args():
     parser.add_argument("--method-name", default="AVC_x264")
     parser.add_argument("--cuda-index", type=int, default=0)
     parser.add_argument("--self_check", action="store_true")
+    parser.add_argument("--probe", action="store_true",
+                        help="encode + decode 4 tiny frames with the real binary, then exit")
     return parser.parse_args()
+
+
+def probe(args):
+    """Encode and decode four tiny frames with the REAL binary before a long run.
+
+    The self-check compares command lines on paper; it cannot know which options a given
+    build accepts. A flag copied from x265 cost a whole Kaggle start-up once. This fails in
+    seconds instead, with the encoder's own error message.
+    """
+    import os
+    from types import SimpleNamespace
+
+    binary, encode, decode, default_preset, label = ENCODERS[args.encoder]
+    encoder = resolve_executable(args.encoder_binary or binary, args.encoder)
+    ffmpeg = resolve_executable(args.ffmpeg, "FFmpeg")
+    sequence = SimpleNamespace(name="probe", width=64, height=64, fps=30.0, frame_count=4)
+    folder = Path(args.work_dir) / "_probe" / args.encoder
+    folder.mkdir(parents=True, exist_ok=True)
+    source = folder / "source.yuv"
+    source.write_bytes(os.urandom(raw_frame_bytes(64, 64, args.bit_depth, args.chroma_format) * 4))
+    bitstream, decoded = folder / "stream.bin", folder / "decoded.yuv"
+    encode(encoder, sequence, source, bitstream, 32, args.bit_depth, args.chroma_format,
+           args.preset or default_preset, [])
+    decode(ffmpeg, sequence, bitstream, decoded, args.bit_depth, args.chroma_format)
+    size = bitstream.stat().st_size
+    shutil.rmtree(folder, ignore_errors=True)
+    print(f"probe passed: {label} encoded and decoded 4 frames ({size} bytes) with {encoder}")
 
 
 if __name__ == "__main__":
     arguments = parse_args()
     if arguments.self_check:
         self_check(arguments)
+    elif arguments.probe:
+        probe(arguments)
     else:
         evaluate(arguments)

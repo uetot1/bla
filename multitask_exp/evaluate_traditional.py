@@ -121,6 +121,19 @@ ENCODERS = {
 }
 
 
+def box_scoring_arguments(detector, evaluator, dataset, sequence, frames, args, first_image_id,
+                          qp):
+    """Positional arguments for evaluate_hevc.evaluate_reconstructions, in its order.
+
+    Built in one place so the self-check can bind them against the real signature: a call
+    that missed three required parameters once passed every paper check and only failed on
+    Kaggle, after the encodes.
+    """
+    return (detector, evaluator, dataset, sequence, frames, args.detector_size, first_image_id,
+            "all-frames", f"{args.method_name}: QP {qp} YOLO {sequence.name}",
+            args.detector_batch_size)
+
+
 def load_png(path):
     with Image.open(path) as image:
         return np.asarray(image.convert("RGB"), dtype=np.uint8)
@@ -205,8 +218,9 @@ def evaluate(args):
             if "box" in axes:
                 per_sequence = DetectionMAP()
                 image_ids["box"] = evaluate_reconstructions(
-                    detector, evaluators["box"], dataset, sequence, frames,
-                    args.detector_size, image_ids["box"], sequence_evaluator=per_sequence)
+                    *box_scoring_arguments(detector, evaluators["box"], dataset, sequence,
+                                           frames, args, image_ids["box"], qp),
+                    sequence_evaluator=per_sequence)
                 records["box"].append({**rate, **per_sequence.compute()})
             if "mask" in axes:
                 per_sequence = MaskMAP()
@@ -319,8 +333,18 @@ def self_check(args):
             assert flag in command and command[command.index(flag) + 1] == value, (name, flag)
     assert "--no-scenecut" in avc and "--scenecut" in hevc, "scenecut must be off in both"
     assert set(ENCODERS) == {"x264", "x265", "vvenc"}, ENCODERS.keys()
+
+    # The box-scoring call must bind to the real function signature.
+    import inspect
+
+    fake_args = SimpleNamespace(detector_size=640, method_name="AVC_x264", detector_batch_size=16)
+    bound = inspect.signature(evaluate_reconstructions).bind(
+        *box_scoring_arguments(None, None, None, sequence, [], fake_args, 0, 32),
+        sequence_evaluator=None)
+    assert bound.arguments["protocol_key"] == "all-frames", bound.arguments
     print("evaluate_traditional self-check passed: x264 mirrors the HEVC anchor's coding "
-          f"structure (qp, preset, bframes 0, fixed GOP {sequence.frame_count}, scenecut off)")
+          f"structure (qp, preset, bframes 0, fixed GOP {sequence.frame_count}, scenecut off), "
+          "and the box-scoring call binds to evaluate_reconstructions' real signature")
 
 
 def parse_args():
@@ -341,6 +365,8 @@ def parse_args():
     parser.add_argument("--detector-size", type=int, default=640)
     parser.add_argument("--confidence-threshold", type=float, default=0.001)
     parser.add_argument("--nms-iou-threshold", type=float, default=0.6)
+    parser.add_argument("--detector-batch-size", type=int, default=16,
+                        help="same default as evaluate_hevc.py; changes speed only")
     parser.add_argument("--seg-weights", default="multitask_exp/weights/yolov5s-seg.pt")
     parser.add_argument("--seg-detector-size", type=int, default=640)
     parser.add_argument("--seg-confidence", type=float, default=0.25)

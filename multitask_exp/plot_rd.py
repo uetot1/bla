@@ -60,14 +60,37 @@ def bd_rate(anchor, candidate, metric):
         return None
 
 
+# Detector settings that change the score. weights_id is left out on purpose: the same
+# yolov5s weights are recorded as "torch-hub:..." by one script and as a sha256 by another.
+DETECTOR_FIELDS = ("model", "input_size", "confidence_threshold", "nms_iou_threshold",
+                   "max_detections")
+
+
+def incompatibility(anchor, data):
+    """Why `data` cannot share a panel with `anchor`, or None when it can."""
+    if anchor.get("evaluation_id") and data.get("evaluation_id") not in (
+            None, anchor["evaluation_id"]):
+        return "evaluation_id khac moc -> khong cung tap test"
+    task_a = anchor.get("task", "object_detection")
+    task_d = data.get("task", "object_detection")
+    if task_a != task_d:
+        return f"task {task_d} khac moc ({task_a})"
+    config_a, config_d = anchor.get("detector_config"), data.get("detector_config")
+    if isinstance(config_a, dict) and isinstance(config_d, dict):
+        differing = [f for f in DETECTOR_FIELDS if config_a.get(f) != config_d.get(f)]
+        if differing:
+            return "detector_config khac moc o " + ", ".join(differing)
+    return None
+
+
 def draw_panel(axis, series, metric, title, anchor_key):
     """series: {method_key: results dict}. Returns {method_key: BD-rate vs anchor}."""
     anchor = series.get(anchor_key)
-    fingerprint = anchor.get("evaluation_id") if anchor else None
     table = {}
     for key, data in series.items():
-        if fingerprint and data.get("evaluation_id") not in (None, fingerprint):
-            print(f"  [{title}] bo qua {key}: evaluation_id khac moc -> khong cung tap test")
+        reason = incompatibility(anchor, data) if anchor else None
+        if reason:
+            print(f"  [{title}] bo qua {key}: {reason}")
             continue
         label, colour, marker, style = STYLE[key]
         rates, quality, kept = curve(data, metric)
@@ -148,10 +171,18 @@ def self_check(args):
         value = tables["kiem tra"]["paper"]
         assert abs(value - (-40.0)) < 0.5, value
         assert "dcvcrt" not in tables["kiem tra"], "a foreign test set must be refused"
+        base = {"evaluation_id": "sha256:x", "detector_config": {"model": "yolov5s",
+                                                                 "input_size": 640}}
+        assert incompatibility(base, dict(base)) is None
+        assert incompatibility(base, {**base, "task": "instance_segmentation"})
+        assert incompatibility(base, {**base, "detector_config": {"model": "yolov5s",
+                                                                  "input_size": 1280}})
+        assert incompatibility(base, {**base, "detector_config": {
+            **base["detector_config"], "weights_id": "sha256:other"}}) is None
         assert (folder / "out.png").stat().st_size > 10_000
         print(markdown_table(tables))
     print(f"plot_rd self-check passed: codec at 0.6x rate reads {value:+.1f} %, "
-          "a curve from another test set is refused, figure written")
+          "a curve from another test set, task or detector setting is refused, figure written")
 
 
 if __name__ == "__main__":

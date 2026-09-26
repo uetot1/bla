@@ -29,6 +29,7 @@ from evaluate_hevc import (raw_frame_bytes, resolve_executable, rgb_to_yuv, safe
                            write_concat_file, x265_decode, x265_encode, x265_version,
                            yuv_to_rgb_frames)
 from multitask_exp.evaluate_mask_proxy import (COMPARISON_SCOPE, GROUND_TRUTH, SegPredictor,
+                                              make_reference, score_decoded_frame,
                                               segmentation_config)
 from multitask_exp.mask_map import MaskMAP
 import numpy as np
@@ -43,14 +44,13 @@ def load_png(path):
 
 
 def score_sequence(predictor, dataset, sequence, decoded_frames, evaluator, first_image_id,
-                   sequence_evaluator=None):
-    """Same comparison as the neural path: frozen model on source vs on decoded frame."""
+                   sequence_evaluator=None, reference=None):
+    """Same comparison as the neural path, through the same scoring function."""
     image_id = first_image_id
     for frame_index, decoded_path in enumerate(decoded_frames):
-        source = dataset.load_frame(sequence.frame_paths[frame_index])
-        source_uint8 = (source.permute(1, 2, 0).numpy().clip(0, 1) * 255).astype(np.uint8)
-        target_masks, _, target_classes = predictor(source_uint8)
-        predicted_masks, scores, classes = predictor(load_png(decoded_path))
+        (predicted_masks, scores, classes,
+         target_masks, target_classes) = score_decoded_frame(
+            predictor, reference, dataset, sequence, frame_index, load_png(decoded_path))
         for metric in (evaluator, sequence_evaluator):
             if metric is not None:
                 metric.add(image_id=image_id, predicted_masks=predicted_masks,
@@ -80,6 +80,7 @@ def evaluate(args):
                              args.confidence_threshold, args.nms_iou_threshold,
                              args.max_detections)
     seg_config = segmentation_config(predictor, args)
+    reference, ground_truth = make_reference(args, device)
 
     work = Path(args.work_dir) / safe_name(args.method_name)
     points = []
@@ -112,7 +113,7 @@ def evaluate(args):
 
             sequence_evaluator = MaskMAP()
             next_image_id = score_sequence(predictor, dataset, sequence, frames, evaluator,
-                                           next_image_id, sequence_evaluator)
+                                           next_image_id, sequence_evaluator, reference)
             actual_bits = bitstream.stat().st_size * 8
             coded_frames = sequence.frame_count
             record = {
@@ -167,7 +168,7 @@ def evaluate(args):
         "rate_points": len(points),
         "task": "instance_segmentation",
         "task_model": "yolov5s-seg",
-        "ground_truth": GROUND_TRUTH,
+        "ground_truth": ground_truth,
         "evaluation_id": evaluation_id(dataset, sequences),
         "dataset": dataset_summary(dataset, sequences),
         "detector_config": seg_config,
@@ -222,6 +223,8 @@ def parse_args():
     parser.add_argument("--method-name", default="HEVC_x265")
     parser.add_argument("--cuda-index", type=int, default=0)
     parser.add_argument("--device", default="cpu", help="self-check only")
+    parser.add_argument("--ground-truth", choices=("proxy", "kitti-mots"), default="proxy")
+    parser.add_argument("--gt-masks-dir", help="kitti-mots only: the prepared masks/ folder")
     parser.add_argument("--self_check", action="store_true")
     return parser.parse_args()
 

@@ -95,6 +95,37 @@ GROUND_TRUTH = ("instance masks predicted by the frozen segmentation model on th
 COMPARISON_SCOPE = "end-to-end VCM system, segmentation axis"
 
 
+def make_reference(args, device):
+    """(reference, ground-truth description) for --ground-truth.
+
+    "proxy" (default) keeps the original behaviour: the reference is the frozen model on
+    the uncompressed frame, and `reference` is None. "kitti-mots" scores against human
+    masks prepared by multitask_exp.kitti_mots.
+    """
+    if args.ground_truth == "proxy":
+        return None, GROUND_TRUTH
+    from multitask_exp import kitti_mots
+
+    if not args.gt_masks_dir:
+        raise ValueError("--ground-truth kitti-mots needs --gt-masks-dir")
+    return (kitti_mots.HumanMaskReference(args.gt_masks_dir, args.detector_size, device),
+            kitti_mots.GROUND_TRUTH)
+
+
+def score_decoded_frame(predictor, reference, dataset, sequence, frame_index, decoded_uint8):
+    """(predicted masks, scores, classes, target masks, target classes) for one frame."""
+    if reference is None:
+        source = dataset.load_frame(sequence.frame_paths[frame_index])
+        target_masks, _, target_classes = predictor(to_uint8_rgb(source))
+        predicted_masks, scores, classes = predictor(decoded_uint8)
+        return predicted_masks, scores, classes, target_masks, target_classes
+    from multitask_exp.kitti_mots import drop_ignored
+
+    target_masks, target_classes, ignore = reference(sequence, frame_index)
+    predicted_masks, scores, classes = drop_ignored(*predictor(decoded_uint8), ignore)
+    return predicted_masks, scores, classes, target_masks, target_classes
+
+
 def segmentation_config(predictor, args):
     """The fingerprint BD-rate compares between an anchor and a candidate.
 
@@ -116,8 +147,9 @@ def segmentation_config(predictor, args):
 
 @torch.inference_mode()
 def decode_and_evaluate_masks(image_model, model, predictor, evaluator, dataset, sequence,
-                              bitstream_path, device, first_image_id, sequence_evaluator=None):
-    """Decode a sequence and score its masks against the uncompressed-frame reference."""
+                              bitstream_path, device, first_image_id, sequence_evaluator=None,
+                              reference=None):
+    """Decode a sequence and score its masks against the reference (see make_reference)."""
     model.clear_dpb()
     model.set_curr_poc(0)
     with VCMSequenceReader(bitstream_path) as reader:
@@ -140,9 +172,10 @@ def decode_and_evaluate_masks(image_model, model, predictor, evaluator, dataset,
             reconstructed = ycbcr2rgb(
                 decoded["x_hat"][:, :, : sequence.height, : sequence.width])
 
-            source = dataset.load_frame(sequence.frame_paths[frame_index])
-            target_masks, _, target_classes = predictor(to_uint8_rgb(source))
-            predicted_masks, scores, classes = predictor(to_uint8_rgb(reconstructed))
+            (predicted_masks, scores, classes,
+             target_masks, target_classes) = score_decoded_frame(
+                predictor, reference, dataset, sequence, frame_index,
+                to_uint8_rgb(reconstructed))
             for metric in (evaluator, sequence_evaluator):
                 if metric is not None:
                     metric.add(image_id=image_id, predicted_masks=predicted_masks,
@@ -184,6 +217,7 @@ def evaluate(args):
                              args.confidence_threshold, args.nms_iou_threshold,
                              args.max_detections)
     seg_config = segmentation_config(predictor, args)
+    reference, ground_truth = make_reference(args, device)
 
     method_name = safe_name(args.method_name)
     bitstream_root = Path(args.bitstream_dir) / method_name
@@ -208,7 +242,7 @@ def evaluate(args):
             sequence_evaluator = MaskMAP()
             next_image_id = decode_and_evaluate_masks(
                 image_model, model, predictor, evaluator, dataset, sequence, bitstream_path,
-                device, next_image_id, sequence_evaluator)
+                device, next_image_id, sequence_evaluator, reference)
             record = {**sequence_rate_record(sequence, bitstream_path, estimated_bits),
                       **sequence_evaluator.compute()}
             sequence_records.append(record)
@@ -249,7 +283,7 @@ def evaluate(args):
         "rate_points": len(points),
         "task": "instance_segmentation",
         "task_model": "yolov5s-seg",
-        "ground_truth": GROUND_TRUTH,
+        "ground_truth": ground_truth,
         "evaluation_id": evaluation_id(dataset, sequences),
         "dataset": dataset_summary(dataset, sequences),
         "detector_config": seg_config,
@@ -303,6 +337,17 @@ def self_check(args):
     else:
         identity = "no instance found on the synthetic frame, identity case not exercised"
 
+    # The default must stay the original proxy path; the human-label path must refuse to
+    # run without its masks rather than silently falling back to the proxy.
+    assert make_reference(argparse.Namespace(ground_truth="proxy"), device) == (None, GROUND_TRUTH)
+    try:
+        make_reference(argparse.Namespace(ground_truth="kitti-mots", gt_masks_dir=None,
+                                          detector_size=640), device)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("kitti-mots without --gt-masks-dir must fail")
+
     print(f"evaluate_mask_proxy self-check passed: predictor deterministic, "
           f"{len(scores)} instances on a synthetic frame, {identity}")
 
@@ -335,6 +380,10 @@ def parse_args():
     parser.add_argument("--device", default="cpu", help="self-check only")
     parser.add_argument("--sample-frame", help="self-check only: a real frame to exercise "
                                                "the identity case on")
+    parser.add_argument("--ground-truth", choices=("proxy", "kitti-mots"), default="proxy",
+                        help="proxy: frozen model on the uncompressed frame (SFU). kitti-mots: "
+                             "human masks prepared by multitask_exp.kitti_mots")
+    parser.add_argument("--gt-masks-dir", help="kitti-mots only: the prepared masks/ folder")
     parser.add_argument("--self_check", action="store_true")
     return parser.parse_args()
 

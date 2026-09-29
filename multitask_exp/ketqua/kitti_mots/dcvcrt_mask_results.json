@@ -1,0 +1,3653 @@
+{
+  "schema_version": 7,
+  "method": "dcvcrt",
+  "codec": "DCVC-RT DMCI + DMC all-frame VCM",
+  "codec_config": {
+    "image_checkpoint": "/kaggle/input/datasets/pduy05/pre-train/cvpr2025_image.pth.tar",
+    "checkpoints": [
+      "/kaggle/input/datasets/pduy05/pre-train/cvpr2025_video.pth.tar",
+      "/kaggle/input/datasets/pduy05/pre-train/cvpr2025_video.pth.tar",
+      "/kaggle/input/datasets/pduy05/pre-train/cvpr2025_video.pth.tar",
+      "/kaggle/input/datasets/pduy05/pre-train/cvpr2025_video.pth.tar",
+      "/kaggle/input/datasets/pduy05/pre-train/cvpr2025_video.pth.tar",
+      "/kaggle/input/datasets/pduy05/pre-train/cvpr2025_video.pth.tar"
+    ],
+    "base_qps": [
+      0,
+      12,
+      24,
+      36,
+      48,
+      63
+    ],
+    "qp_offsets": [
+      0,
+      8,
+      0,
+      4,
+      0,
+      4,
+      0,
+      4
+    ],
+    "reset_interval": 32,
+    "codec_precision": "fp16",
+    "color_pipeline": "RGB -> full-range BT.709 YCbCr444 -> codec -> RGB"
+  },
+  "protocol": "all frames and complete bitstream included",
+  "comparison_scope": "end-to-end VCM system, segmentation axis",
+  "rate_source": "actual sequence-container bytes including headers",
+  "rate_points": 6,
+  "task": "instance_segmentation",
+  "task_model": "yolov5s-seg",
+  "ground_truth": "KITTI-MOTS human-annotated instance masks (car, pedestrian), validation split; predictions mostly inside annotated ignore regions are discarded",
+  "evaluation_id": "sha256:8e2cce286f22ee21de9822d2c6f46e50eb29d714ab8b7185c049e3e0bd29acbe",
+  "dataset": {
+    "sequences": 9,
+    "source_frames": 2981
+  },
+  "detector_config": {
+    "task_model": "yolov5s-seg",
+    "weights_id": "sha256:8706c269428bed07928b9607b36d93132aacba9add497755b7f77e0c7666829d",
+    "input_size": 640,
+    "confidence_threshold": 0.25,
+    "nms_iou_threshold": 0.45,
+    "max_detections": 300,
+    "class_count": 80,
+    "mask_space": "detector letterbox input, identical transform for both sides"
+  },
+  "machine_frontend": {
+    "type": "frozen_pretrained_yolov5_seg",
+    "task_backend_weights_id": "sha256:8706c269428bed07928b9607b36d93132aacba9add497755b7f77e0c7666829d"
+  },
+  "points": [
+    {
+      "base_qp": 0,
+      "video_checkpoint": "/kaggle/input/datasets/pduy05/pre-train/cvpr2025_video.pth.tar",
+      "hierarchical_qp": true,
+      "actual_bits": 7593328,
+      "actual_bpp": 0.005500305598932184,
+      "estimated_entropy_bits": 7472720.0,
+      "estimated_bpp": 0.005412941947885368,
+      "actual_to_estimated_bpp_ratio": 1.0161397723988053,
+      "actual_minus_estimated_bits": 120608.0,
+      "kbps": 25.47241865145924,
+      "coded_frames": 2981,
+      "map50": 0.30637265498438837,
+      "map5095": 0.1326993623668264,
+      "evaluated_images": 2981,
+      "evaluated_classes": 2,
+      "map_by_iou": {
+        "0.50": 0.30637265498438837,
+        "0.55": 0.2681254185103251,
+        "0.60": 0.22135514905939008,
+        "0.65": 0.17576760763226656,
+        "0.70": 0.14383268975521799,
+        "0.75": 0.11083627983432626,
+        "0.80": 0.06392360925923941,
+        "0.85": 0.025895474986898405,
+        "0.90": 0.01080358398966253,
+        "0.95": 8.115565654926148e-05
+      },
+      "sequences": [
+        {
+          "name": "KITTI_0002",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_00/KITTI_0002.vcm",
+          "actual_bits": 605232,
+          "actual_bpp": 0.005592072110188967,
+          "estimated_entropy_bits": 595760.0,
+          "estimated_bpp": 0.005504555080309995,
+          "actual_to_estimated_bpp_ratio": 1.0158990197394924,
+          "actual_minus_estimated_bits": 9472.0,
+          "kbps": 25.975622317596567,
+          "fps": 10.0,
+          "width": 1242,
+          "height": 374,
+          "coded_frames": 233,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 36152,
+              "estimated_entropy_bits": 35960.0,
+              "pixels": 464508,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 38136,
+              "estimated_entropy_bits": 37856.0,
+              "pixels": 3251556,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 92872,
+              "estimated_entropy_bits": 91912.0,
+              "pixels": 11148192,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 95328,
+              "estimated_entropy_bits": 94048.0,
+              "pixels": 14864256,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 342744,
+              "estimated_entropy_bits": 335984.0,
+              "pixels": 78501852,
+              "coded_frames": 169
+            }
+          },
+          "map50": 0.1475896098934398,
+          "map5095": 0.05010143449822384,
+          "evaluated_images": 233,
+          "evaluated_classes": 2,
+          "map_by_iou": {
+            "0.50": 0.1475896098934398,
+            "0.55": 0.10746776315270988,
+            "0.60": 0.07897108544914616,
+            "0.65": 0.05300307667914745,
+            "0.70": 0.042747436971113786,
+            "0.75": 0.03318093016198172,
+            "0.80": 0.02331130309919404,
+            "0.85": 0.012596918855872725,
+            "0.90": 0.002146220719632939,
+            "0.95": 0.0
+          }
+        },
+        {
+          "name": "KITTI_0006",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_00/KITTI_0006.vcm",
+          "actual_bits": 436616,
+          "actual_bpp": 0.0034813098941165626,
+          "estimated_entropy_bits": 425664.0,
+          "estimated_bpp": 0.0033939853206690377,
+          "actual_to_estimated_bpp_ratio": 1.0257292136520824,
+          "actual_minus_estimated_bits": 10952.0,
+          "kbps": 16.170962962962964,
+          "fps": 10.0,
+          "width": 1242,
+          "height": 374,
+          "coded_frames": 270,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 19656,
+              "estimated_entropy_bits": 19464.0,
+              "pixels": 464508,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 26528,
+              "estimated_entropy_bits": 26248.0,
+              "pixels": 3251556,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 9120,
+              "estimated_entropy_bits": 8160.0,
+              "pixels": 11148192,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 36808,
+              "estimated_entropy_bits": 35528.0,
+              "pixels": 14864256,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 344504,
+              "estimated_entropy_bits": 336264.0,
+              "pixels": 95688648,
+              "coded_frames": 206
+            }
+          },
+          "map50": 0.5319511578095287,
+          "map5095": 0.2598531703600985,
+          "evaluated_images": 270,
+          "evaluated_classes": 1,
+          "map_by_iou": {
+            "0.50": 0.5319511578095287,
+            "0.55": 0.4793489603257607,
+            "0.60": 0.4449223285528939,
+            "0.65": 0.3798174300952106,
+            "0.70": 0.31375724530023974,
+            "0.75": 0.25321602699973667,
+            "0.80": 0.1565515105724712,
+            "0.85": 0.03806695393614273,
+            "0.90": 0.0009000900090009002,
+            "0.95": 0.0
+          }
+        },
+        {
+          "name": "KITTI_0007",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_00/KITTI_0007.vcm",
+          "actual_bits": 2429128,
+          "actual_bpp": 0.00653683036675364,
+          "estimated_entropy_bits": 2396976.0,
+          "estimated_bpp": 0.006450308713735824,
+          "actual_to_estimated_bpp_ratio": 1.0134135677620468,
+          "actual_minus_estimated_bits": 32152.0,
+          "kbps": 30.3641,
+          "fps": 10.0,
+          "width": 1242,
+          "height": 374,
+          "coded_frames": 800,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 36752,
+              "estimated_entropy_bits": 36560.0,
+              "pixels": 464508,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 48056,
+              "estimated_entropy_bits": 47776.0,
+              "pixels": 3251556,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 74000,
+              "estimated_entropy_bits": 73040.0,
+              "pixels": 11148192,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 118184,
+              "estimated_entropy_bits": 116904.0,
+              "pixels": 14864256,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 2152136,
+              "estimated_entropy_bits": 2122696.0,
+              "pixels": 341877888,
+              "coded_frames": 736
+            }
+          },
+          "map50": 0.15406534382390044,
+          "map5095": 0.07906060355408856,
+          "evaluated_images": 800,
+          "evaluated_classes": 2,
+          "map_by_iou": {
+            "0.50": 0.15406534382390044,
+            "0.55": 0.14125717171101548,
+            "0.60": 0.12429099039174246,
+            "0.65": 0.11082523325307198,
+            "0.70": 0.09650132782615634,
+            "0.75": 0.0784104041711637,
+            "0.80": 0.051274715868085165,
+            "0.85": 0.02508413619110768,
+            "0.90": 0.008596682301642062,
+            "0.95": 0.00030003000300030005
+          }
+        },
+        {
+          "name": "KITTI_0008",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_00/KITTI_0008.vcm",
+          "actual_bits": 725032,
+          "actual_bpp": 0.004002205366229237,
+          "estimated_entropy_bits": 709280.0,
+          "estimated_bpp": 0.003915253702124972,
+          "actual_to_estimated_bpp_ratio": 1.0222084367245658,
+          "actual_minus_estimated_bits": 15752.0,
+          "kbps": 18.5905641025641,
+          "fps": 10.0,
+          "width": 1242,
+          "height": 374,
+          "coded_frames": 390,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 15736,
+              "estimated_entropy_bits": 15544.0,
+              "pixels": 464508,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 22352,
+              "estimated_entropy_bits": 22072.0,
+              "pixels": 3251556,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 31720,
+              "estimated_entropy_bits": 30760.0,
+              "pixels": 11148192,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 53320,
+              "estimated_entropy_bits": 52040.0,
+              "pixels": 14864256,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 601904,
+              "estimated_entropy_bits": 588864.0,
+              "pixels": 151429608,
+              "coded_frames": 326
+            }
+          },
+          "map50": 0.5378039827752981,
+          "map5095": 0.24895901119412606,
+          "evaluated_images": 390,
+          "evaluated_classes": 1,
+          "map_by_iou": {
+            "0.50": 0.5378039827752981,
+            "0.55": 0.50332609932924,
+            "0.60": 0.46559321917088486,
+            "0.65": 0.40694775065264266,
+            "0.70": 0.32689243005687546,
+            "0.75": 0.1844202476289731,
+            "0.80": 0.05659366293285153,
+            "0.85": 0.0073526533878942,
+            "0.90": 0.0006600660066006601,
+            "0.95": 0.0
+          }
+        },
+        {
+          "name": "KITTI_0010",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_00/KITTI_0010.vcm",
+          "actual_bits": 829480,
+          "actual_bpp": 0.006073868575390924,
+          "estimated_entropy_bits": 817568.0,
+          "estimated_bpp": 0.005986642937075284,
+          "actual_to_estimated_bpp_ratio": 1.0145700418803085,
+          "actual_minus_estimated_bits": 11912.0,
+          "kbps": 28.21360544217687,
+          "fps": 10.0,
+          "width": 1242,
+          "height": 374,
+          "coded_frames": 294,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 17112,
+              "estimated_entropy_bits": 16920.0,
+              "pixels": 464508,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 18344,
+              "estimated_entropy_bits": 18064.0,
+              "pixels": 3251556,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 66928,
+              "estimated_entropy_bits": 65968.0,
+              "pixels": 11148192,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 119088,
+              "estimated_entropy_bits": 117808.0,
+              "pixels": 14864256,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 608008,
+              "estimated_entropy_bits": 598808.0,
+              "pixels": 106836840,
+              "coded_frames": 230
+            }
+          },
+          "map50": 0.2484665454713123,
+          "map5095": 0.1363380034600624,
+          "evaluated_images": 294,
+          "evaluated_classes": 2,
+          "map_by_iou": {
+            "0.50": 0.2484665454713123,
+            "0.55": 0.2401537256461781,
+            "0.60": 0.23396090118500726,
+            "0.65": 0.22274803259654155,
+            "0.70": 0.2054832448577641,
+            "0.75": 0.1590541072758934,
+            "0.80": 0.047868176195684724,
+            "0.85": 0.005645301372242487,
+            "0.90": 0.0,
+            "0.95": 0.0
+          }
+        },
+        {
+          "name": "KITTI_0013",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_00/KITTI_0013.vcm",
+          "actual_bits": 895512,
+          "actual_bpp": 0.005670211973807581,
+          "estimated_entropy_bits": 881760.0,
+          "estimated_bpp": 0.0055831369205823845,
+          "actual_to_estimated_bpp_ratio": 1.0155960805661404,
+          "actual_minus_estimated_bits": 13752.0,
+          "kbps": 26.338588235294118,
+          "fps": 10.0,
+          "width": 1242,
+          "height": 374,
+          "coded_frames": 340,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 21016,
+              "estimated_entropy_bits": 20824.0,
+              "pixels": 464508,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 23216,
+              "estimated_entropy_bits": 22936.0,
+              "pixels": 3251556,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 47976,
+              "estimated_entropy_bits": 47016.0,
+              "pixels": 11148192,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 74632,
+              "estimated_entropy_bits": 73352.0,
+              "pixels": 14864256,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 728672,
+              "estimated_entropy_bits": 717632.0,
+              "pixels": 128204208,
+              "coded_frames": 276
+            }
+          },
+          "map50": 0.08665126378977336,
+          "map5095": 0.04641909909117017,
+          "evaluated_images": 340,
+          "evaluated_classes": 2,
+          "map_by_iou": {
+            "0.50": 0.08665126378977336,
+            "0.55": 0.07864993267671265,
+            "0.60": 0.06363256780175032,
+            "0.65": 0.05431176813093564,
+            "0.70": 0.04639354178239519,
+            "0.75": 0.03478040111703478,
+            "0.80": 0.03351104341203351,
+            "0.85": 0.03313023610053313,
+            "0.90": 0.03313023610053313,
+            "0.95": 0.0
+          }
+        },
+        {
+          "name": "KITTI_0014",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_00/KITTI_0014.vcm",
+          "actual_bits": 285880,
+          "actual_bpp": 0.005955178263724324,
+          "estimated_entropy_bits": 281488.0,
+          "estimated_bpp": 0.005863688327617296,
+          "actual_to_estimated_bpp_ratio": 1.0156027965668164,
+          "actual_minus_estimated_bits": 4392.0,
+          "kbps": 26.969811320754715,
+          "fps": 10.0,
+          "width": 1224,
+          "height": 370,
+          "coded_frames": 106,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 30336,
+              "estimated_entropy_bits": 30144.0,
+              "pixels": 452880,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 44800,
+              "estimated_entropy_bits": 44520.0,
+              "pixels": 3170160,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 48624,
+              "estimated_entropy_bits": 47664.0,
+              "pixels": 10869120,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 77880,
+              "estimated_entropy_bits": 76600.0,
+              "pixels": 14492160,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 84240,
+              "estimated_entropy_bits": 82560.0,
+              "pixels": 19020960,
+              "coded_frames": 42
+            }
+          },
+          "map50": 0.0594785424694696,
+          "map5095": 0.016166028912933218,
+          "evaluated_images": 106,
+          "evaluated_classes": 2,
+          "map_by_iou": {
+            "0.50": 0.0594785424694696,
+            "0.55": 0.03588660496484431,
+            "0.60": 0.020752314730367656,
+            "0.65": 0.015543715388488,
+            "0.70": 0.00960978450786255,
+            "0.75": 0.0055378419197851985,
+            "0.80": 0.0049504950495049506,
+            "0.85": 0.0049504950495049506,
+            "0.90": 0.0049504950495049506,
+            "0.95": 0.0
+          }
+        },
+        {
+          "name": "KITTI_0016",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_00/KITTI_0016.vcm",
+          "actual_bits": 419736,
+          "actual_bpp": 0.004434521771983072,
+          "estimated_entropy_bits": 411224.0,
+          "estimated_bpp": 0.004344592270288865,
+          "actual_to_estimated_bpp_ratio": 1.0206991809816548,
+          "actual_minus_estimated_bits": 8512.0,
+          "kbps": 20.083062200956938,
+          "fps": 10.0,
+          "width": 1224,
+          "height": 370,
+          "coded_frames": 209,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 21040,
+              "estimated_entropy_bits": 20848.0,
+              "pixels": 452880,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 30992,
+              "estimated_entropy_bits": 30712.0,
+              "pixels": 3170160,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 26368,
+              "estimated_entropy_bits": 25408.0,
+              "pixels": 10869120,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 51608,
+              "estimated_entropy_bits": 50328.0,
+              "pixels": 14492160,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 289728,
+              "estimated_entropy_bits": 283928.0,
+              "pixels": 65667600,
+              "coded_frames": 145
+            }
+          },
+          "map50": 0.3377697295263531,
+          "map5095": 0.10613101836400525,
+          "evaluated_images": 209,
+          "evaluated_classes": 2,
+          "map_by_iou": {
+            "0.50": 0.3377697295263531,
+            "0.55": 0.2574179091301596,
+            "0.60": 0.17894659297336074,
+            "0.65": 0.1134784015821456,
+            "0.70": 0.08342755792041504,
+            "0.75": 0.07121048485319073,
+            "0.80": 0.01895847714321317,
+            "0.85": 0.00010103051121438674,
+            "0.90": 0.0,
+            "0.95": 0.0
+          }
+        },
+        {
+          "name": "KITTI_0018",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_00/KITTI_0018.vcm",
+          "actual_bits": 966712,
+          "actual_bpp": 0.006158928531245723,
+          "estimated_entropy_bits": 953000.0,
+          "estimated_bpp": 0.006071569288761465,
+          "actual_to_estimated_bpp_ratio": 1.0143882476390347,
+          "actual_minus_estimated_bits": 13712.0,
+          "kbps": 28.516578171091446,
+          "fps": 10.0,
+          "width": 1238,
+          "height": 374,
+          "coded_frames": 339,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 28288,
+              "estimated_entropy_bits": 28096.0,
+              "pixels": 463012,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 26944,
+              "estimated_entropy_bits": 26664.0,
+              "pixels": 3241084,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 59192,
+              "estimated_entropy_bits": 58232.0,
+              "pixels": 11112288,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 102464,
+              "estimated_entropy_bits": 101184.0,
+              "pixels": 14816384,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 749824,
+              "estimated_entropy_bits": 738824.0,
+              "pixels": 127328300,
+              "coded_frames": 275
+            }
+          },
+          "map50": 0.805729285628337,
+          "map5095": 0.48984510591984537,
+          "evaluated_images": 339,
+          "evaluated_classes": 1,
+          "map_by_iou": {
+            "0.50": 0.805729285628337,
+            "0.55": 0.7923824113099736,
+            "0.60": 0.7695767271109187,
+            "0.65": 0.7152658283730067,
+            "0.70": 0.6361970756670338,
+            "0.75": 0.5572187752189626,
+            "0.80": 0.3701897804242765,
+            "0.85": 0.17241416974149032,
+            "0.90": 0.07930020232982926,
+            "0.95": 0.00017680339462517678
+          }
+        }
+      ]
+    },
+    {
+      "base_qp": 12,
+      "video_checkpoint": "/kaggle/input/datasets/pduy05/pre-train/cvpr2025_video.pth.tar",
+      "hierarchical_qp": true,
+      "actual_bits": 18037272,
+      "actual_bpp": 0.013065484352982343,
+      "estimated_entropy_bits": 17916664.0,
+      "estimated_bpp": 0.012978120701935528,
+      "actual_to_estimated_bpp_ratio": 1.0067316103042396,
+      "actual_minus_estimated_bits": 120608.0,
+      "kbps": 60.50745387453874,
+      "coded_frames": 2981,
+      "map50": 0.536679627897096,
+      "map5095": 0.2342041402206779,
+      "evaluated_images": 2981,
+      "evaluated_classes": 2,
+      "map_by_iou": {
+        "0.50": 0.536679627897096,
+        "0.55": 0.4710872779390496,
+        "0.60": 0.3971519872842748,
+        "0.65": 0.31058300051317467,
+        "0.70": 0.23777391750948468,
+        "0.75": 0.18697442949154727,
+        "0.80": 0.12415903359441034,
+        "0.85": 0.06048255224906497,
+        "0.90": 0.016900494216751695,
+        "0.95": 0.00024908151192477737
+      },
+      "sequences": [
+        {
+          "name": "KITTI_0002",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_12/KITTI_0002.vcm",
+          "actual_bits": 1404784,
+          "actual_bpp": 0.01297957382828353,
+          "estimated_entropy_bits": 1395312.0,
+          "estimated_bpp": 0.012892056798404558,
+          "actual_to_estimated_bpp_ratio": 1.0067884458816379,
+          "actual_minus_estimated_bits": 9472.0,
+          "kbps": 60.29115879828326,
+          "fps": 10.0,
+          "width": 1242,
+          "height": 374,
+          "coded_frames": 233,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 75008,
+              "estimated_entropy_bits": 74816.0,
+              "pixels": 464508,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 94840,
+              "estimated_entropy_bits": 94560.0,
+              "pixels": 3251556,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 234376,
+              "estimated_entropy_bits": 233416.0,
+              "pixels": 11148192,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 222496,
+              "estimated_entropy_bits": 221216.0,
+              "pixels": 14864256,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 778064,
+              "estimated_entropy_bits": 771304.0,
+              "pixels": 78501852,
+              "coded_frames": 169
+            }
+          },
+          "map50": 0.41357426235072314,
+          "map5095": 0.12063942364494866,
+          "evaluated_images": 233,
+          "evaluated_classes": 2,
+          "map_by_iou": {
+            "0.50": 0.41357426235072314,
+            "0.55": 0.27253930374128776,
+            "0.60": 0.16558779914341248,
+            "0.65": 0.11252437646341956,
+            "0.70": 0.09370362274949338,
+            "0.75": 0.07215807158048239,
+            "0.80": 0.047700814822108105,
+            "0.85": 0.024274302430243023,
+            "0.90": 0.004331683168316832,
+            "0.95": 0.0
+          }
+        },
+        {
+          "name": "KITTI_0006",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_12/KITTI_0006.vcm",
+          "actual_bits": 983040,
+          "actual_bpp": 0.00783816185919056,
+          "estimated_entropy_bits": 972088.0,
+          "estimated_bpp": 0.007750837285743035,
+          "actual_to_estimated_bpp_ratio": 1.0112664697023315,
+          "actual_minus_estimated_bits": 10952.0,
+          "kbps": 36.40888888888889,
+          "fps": 10.0,
+          "width": 1242,
+          "height": 374,
+          "coded_frames": 270,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 33888,
+              "estimated_entropy_bits": 33696.0,
+              "pixels": 464508,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 58672,
+              "estimated_entropy_bits": 58392.0,
+              "pixels": 3251556,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 16744,
+              "estimated_entropy_bits": 15784.0,
+              "pixels": 11148192,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 84944,
+              "estimated_entropy_bits": 83664.0,
+              "pixels": 14864256,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 788792,
+              "estimated_entropy_bits": 780552.0,
+              "pixels": 95688648,
+              "coded_frames": 206
+            }
+          },
+          "map50": 0.6078396396588326,
+          "map5095": 0.35804151673230095,
+          "evaluated_images": 270,
+          "evaluated_classes": 1,
+          "map_by_iou": {
+            "0.50": 0.6078396396588326,
+            "0.55": 0.5897089851239813,
+            "0.60": 0.5519095418443685,
+            "0.65": 0.4980609672279325,
+            "0.70": 0.46539182644364613,
+            "0.75": 0.40317858642191945,
+            "0.80": 0.3209439516823324,
+            "0.85": 0.13145454810957752,
+            "0.90": 0.011927120810419236,
+            "0.95": 0.0
+          }
+        },
+        {
+          "name": "KITTI_0007",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_12/KITTI_0007.vcm",
+          "actual_bits": 5977456,
+          "actual_bpp": 0.016085449550922698,
+          "estimated_entropy_bits": 5945304.0,
+          "estimated_bpp": 0.01599892789790488,
+          "actual_to_estimated_bpp_ratio": 1.0054079656818222,
+          "actual_minus_estimated_bits": 32152.0,
+          "kbps": 74.7182,
+          "fps": 10.0,
+          "width": 1242,
+          "height": 374,
+          "coded_frames": 800,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 76544,
+              "estimated_entropy_bits": 76352.0,
+              "pixels": 464508,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 91160,
+              "estimated_entropy_bits": 90880.0,
+              "pixels": 3251556,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 225272,
+              "estimated_entropy_bits": 224312.0,
+              "pixels": 11148192,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 307496,
+              "estimated_entropy_bits": 306216.0,
+              "pixels": 14864256,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 5276984,
+              "estimated_entropy_bits": 5247544.0,
+              "pixels": 341877888,
+              "coded_frames": 736
+            }
+          },
+          "map50": 0.35751908123040926,
+          "map5095": 0.19710020870536618,
+          "evaluated_images": 800,
+          "evaluated_classes": 2,
+          "map_by_iou": {
+            "0.50": 0.35751908123040926,
+            "0.55": 0.33010589482977676,
+            "0.60": 0.30257740431049257,
+            "0.65": 0.27345472508686164,
+            "0.70": 0.2368094908790437,
+            "0.75": 0.20152394908785218,
+            "0.80": 0.15583732861693433,
+            "0.85": 0.08663687879256839,
+            "0.90": 0.025236138526383126,
+            "0.95": 0.0013011956933398259
+          }
+        },
+        {
+          "name": "KITTI_0008",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_12/KITTI_0008.vcm",
+          "actual_bits": 1648440,
+          "actual_bpp": 0.009099454112241835,
+          "estimated_entropy_bits": 1632688.0,
+          "estimated_bpp": 0.009012502448137573,
+          "actual_to_estimated_bpp_ratio": 1.0096478935350783,
+          "actual_minus_estimated_bits": 15752.0,
+          "kbps": 42.26769230769231,
+          "fps": 10.0,
+          "width": 1242,
+          "height": 374,
+          "coded_frames": 390,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 27312,
+              "estimated_entropy_bits": 27120.0,
+              "pixels": 464508,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 46568,
+              "estimated_entropy_bits": 46288.0,
+              "pixels": 3251556,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 70656,
+              "estimated_entropy_bits": 69696.0,
+              "pixels": 11148192,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 129136,
+              "estimated_entropy_bits": 127856.0,
+              "pixels": 14864256,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 1374768,
+              "estimated_entropy_bits": 1361728.0,
+              "pixels": 151429608,
+              "coded_frames": 326
+            }
+          },
+          "map50": 0.7479791220453047,
+          "map5095": 0.3879742621213086,
+          "evaluated_images": 390,
+          "evaluated_classes": 1,
+          "map_by_iou": {
+            "0.50": 0.7479791220453047,
+            "0.55": 0.7243638310995141,
+            "0.60": 0.6872716528576371,
+            "0.65": 0.6072108798278486,
+            "0.70": 0.5062984430608373,
+            "0.75": 0.35850553713107136,
+            "0.80": 0.17648517973574046,
+            "0.85": 0.0600375958533243,
+            "0.90": 0.011590379601807609,
+            "0.95": 0.0
+          }
+        },
+        {
+          "name": "KITTI_0010",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_12/KITTI_0010.vcm",
+          "actual_bits": 1942600,
+          "actual_bpp": 0.014224691486900719,
+          "estimated_entropy_bits": 1930688.0,
+          "estimated_bpp": 0.014137465848585079,
+          "actual_to_estimated_bpp_ratio": 1.006169821327941,
+          "actual_minus_estimated_bits": 11912.0,
+          "kbps": 66.07482993197279,
+          "fps": 10.0,
+          "width": 1242,
+          "height": 374,
+          "coded_frames": 294,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 30296,
+              "estimated_entropy_bits": 30104.0,
+              "pixels": 464508,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 42976,
+              "estimated_entropy_bits": 42696.0,
+              "pixels": 3251556,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 164176,
+              "estimated_entropy_bits": 163216.0,
+              "pixels": 11148192,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 280584,
+              "estimated_entropy_bits": 279304.0,
+              "pixels": 14864256,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 1424568,
+              "estimated_entropy_bits": 1415368.0,
+              "pixels": 106836840,
+              "coded_frames": 230
+            }
+          },
+          "map50": 0.3623360754706955,
+          "map5095": 0.20744404782887532,
+          "evaluated_images": 294,
+          "evaluated_classes": 2,
+          "map_by_iou": {
+            "0.50": 0.3623360754706955,
+            "0.55": 0.3504507504548537,
+            "0.60": 0.3311719342708646,
+            "0.65": 0.31331716254286374,
+            "0.70": 0.28622248534923334,
+            "0.75": 0.2609483603812263,
+            "0.80": 0.14774337030160642,
+            "0.85": 0.019775091992657524,
+            "0.90": 0.0024752475247524753,
+            "0.95": 0.0
+          }
+        },
+        {
+          "name": "KITTI_0013",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_12/KITTI_0013.vcm",
+          "actual_bits": 2055408,
+          "actual_bpp": 0.013014453243127833,
+          "estimated_entropy_bits": 2041656.0,
+          "estimated_bpp": 0.012927378189902637,
+          "actual_to_estimated_bpp_ratio": 1.0067357086600288,
+          "actual_minus_estimated_bits": 13752.0,
+          "kbps": 60.45317647058823,
+          "fps": 10.0,
+          "width": 1242,
+          "height": 374,
+          "coded_frames": 340,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 39264,
+              "estimated_entropy_bits": 39072.0,
+              "pixels": 464508,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 52424,
+              "estimated_entropy_bits": 52144.0,
+              "pixels": 3251556,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 112584,
+              "estimated_entropy_bits": 111624.0,
+              "pixels": 11148192,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 176008,
+              "estimated_entropy_bits": 174728.0,
+              "pixels": 14864256,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 1675128,
+              "estimated_entropy_bits": 1664088.0,
+              "pixels": 128204208,
+              "coded_frames": 276
+            }
+          },
+          "map50": 0.25625133896342844,
+          "map5095": 0.10183398576141152,
+          "evaluated_images": 340,
+          "evaluated_classes": 2,
+          "map_by_iou": {
+            "0.50": 0.25625133896342844,
+            "0.55": 0.20464835778144652,
+            "0.60": 0.16762782692875322,
+            "0.65": 0.11754169620792865,
+            "0.70": 0.08269425798373874,
+            "0.75": 0.054466988167502284,
+            "0.80": 0.05077417234510795,
+            "0.85": 0.05003536067892504,
+            "0.90": 0.02934936350777935,
+            "0.95": 0.0049504950495049506
+          }
+        },
+        {
+          "name": "KITTI_0014",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_12/KITTI_0014.vcm",
+          "actual_bits": 659304,
+          "actual_bpp": 0.01373398926118127,
+          "estimated_entropy_bits": 654912.0,
+          "estimated_bpp": 0.013642499325074242,
+          "actual_to_estimated_bpp_ratio": 1.0067062445030783,
+          "actual_minus_estimated_bits": 4392.0,
+          "kbps": 62.198490566037734,
+          "fps": 10.0,
+          "width": 1224,
+          "height": 370,
+          "coded_frames": 106,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 58600,
+              "estimated_entropy_bits": 58408.0,
+              "pixels": 452880,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 84400,
+              "estimated_entropy_bits": 84120.0,
+              "pixels": 3170160,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 116760,
+              "estimated_entropy_bits": 115800.0,
+              "pixels": 10869120,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 201216,
+              "estimated_entropy_bits": 199936.0,
+              "pixels": 14492160,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 198328,
+              "estimated_entropy_bits": 196648.0,
+              "pixels": 19020960,
+              "coded_frames": 42
+            }
+          },
+          "map50": 0.17969295783273154,
+          "map5095": 0.05683072224280015,
+          "evaluated_images": 106,
+          "evaluated_classes": 2,
+          "map_by_iou": {
+            "0.50": 0.17969295783273154,
+            "0.55": 0.15257492916713078,
+            "0.60": 0.10576095011205079,
+            "0.65": 0.057363931990181964,
+            "0.70": 0.02578292614679136,
+            "0.75": 0.014818989202628391,
+            "0.80": 0.010388917042964801,
+            "0.85": 0.008486562942008486,
+            "0.90": 0.008486562942008486,
+            "0.95": 0.0049504950495049506
+          }
+        },
+        {
+          "name": "KITTI_0016",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_12/KITTI_0016.vcm",
+          "actual_bits": 978040,
+          "actual_bpp": 0.010333018072956153,
+          "estimated_entropy_bits": 969528.0,
+          "estimated_bpp": 0.010243088571261947,
+          "actual_to_estimated_bpp_ratio": 1.0087795298330735,
+          "actual_minus_estimated_bits": 8512.0,
+          "kbps": 46.79617224880383,
+          "fps": 10.0,
+          "width": 1224,
+          "height": 370,
+          "coded_frames": 209,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 38576,
+              "estimated_entropy_bits": 38384.0,
+              "pixels": 452880,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 66552,
+              "estimated_entropy_bits": 66272.0,
+              "pixels": 3170160,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 65736,
+              "estimated_entropy_bits": 64776.0,
+              "pixels": 10869120,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 125824,
+              "estimated_entropy_bits": 124544.0,
+              "pixels": 14492160,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 681352,
+              "estimated_entropy_bits": 675552.0,
+              "pixels": 65667600,
+              "coded_frames": 145
+            }
+          },
+          "map50": 0.5496910693354824,
+          "map5095": 0.18324125909347136,
+          "evaluated_images": 209,
+          "evaluated_classes": 2,
+          "map_by_iou": {
+            "0.50": 0.5496910693354824,
+            "0.55": 0.48269870148143734,
+            "0.60": 0.3506057879946325,
+            "0.65": 0.22680313382030057,
+            "0.70": 0.1259916262640842,
+            "0.75": 0.09349597201381597,
+            "0.80": 0.002984857309260338,
+            "0.85": 0.00014144271570014144,
+            "0.90": 0.0,
+            "0.95": 0.0
+          }
+        },
+        {
+          "name": "KITTI_0018",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_12/KITTI_0018.vcm",
+          "actual_bits": 2388200,
+          "actual_bpp": 0.015215237959517451,
+          "estimated_entropy_bits": 2374488.0,
+          "estimated_bpp": 0.015127878717033194,
+          "actual_to_estimated_bpp_ratio": 1.0057747185919659,
+          "actual_minus_estimated_bits": 13712.0,
+          "kbps": 70.44837758112094,
+          "fps": 10.0,
+          "width": 1238,
+          "height": 374,
+          "coded_frames": 339,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 57984,
+              "estimated_entropy_bits": 57792.0,
+              "pixels": 463012,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 70120,
+              "estimated_entropy_bits": 69840.0,
+              "pixels": 3241084,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 161192,
+              "estimated_entropy_bits": 160232.0,
+              "pixels": 11112288,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 261416,
+              "estimated_entropy_bits": 260136.0,
+              "pixels": 14816384,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 1837488,
+              "estimated_entropy_bits": 1826488.0,
+              "pixels": 127328300,
+              "coded_frames": 275
+            }
+          },
+          "map50": 0.8778267007151724,
+          "map5095": 0.5530412716605299,
+          "evaluated_images": 339,
+          "evaluated_classes": 1,
+          "map_by_iou": {
+            "0.50": 0.8778267007151724,
+            "0.55": 0.8661027849532106,
+            "0.60": 0.8339790320356946,
+            "0.65": 0.7897687118308132,
+            "0.70": 0.7228319756599737,
+            "0.75": 0.6243813762085682,
+            "0.80": 0.4553043115140767,
+            "0.85": 0.26705410647458644,
+            "0.90": 0.09247773637493513,
+            "0.95": 0.0006859808382685843
+          }
+        }
+      ]
+    },
+    {
+      "base_qp": 24,
+      "video_checkpoint": "/kaggle/input/datasets/pduy05/pre-train/cvpr2025_video.pth.tar",
+      "hierarchical_qp": true,
+      "actual_bits": 44072016,
+      "actual_bpp": 0.031924020187331405,
+      "estimated_entropy_bits": 43951408.0,
+      "estimated_bpp": 0.03183665653628459,
+      "actual_to_estimated_bpp_ratio": 1.0027441214169976,
+      "actual_minus_estimated_bits": 120608.0,
+      "kbps": 147.8430593760483,
+      "coded_frames": 2981,
+      "map50": 0.6305763313710846,
+      "map5095": 0.2921715298178075,
+      "evaluated_images": 2981,
+      "evaluated_classes": 2,
+      "map_by_iou": {
+        "0.50": 0.6305763313710846,
+        "0.55": 0.5722748151408692,
+        "0.60": 0.4978325365941477,
+        "0.65": 0.4028582725743054,
+        "0.70": 0.30949392923771396,
+        "0.75": 0.22848508489306307,
+        "0.80": 0.15758126877375428,
+        "0.85": 0.09012976917199078,
+        "0.90": 0.03166426598079304,
+        "0.95": 0.0008190244403530537
+      },
+      "sequences": [
+        {
+          "name": "KITTI_0002",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_24/KITTI_0002.vcm",
+          "actual_bits": 3227456,
+          "actual_bpp": 0.02982024526869373,
+          "estimated_entropy_bits": 3217984.0,
+          "estimated_bpp": 0.029732728238814756,
+          "actual_to_estimated_bpp_ratio": 1.0029434577673475,
+          "actual_minus_estimated_bits": 9472.0,
+          "kbps": 138.51742489270387,
+          "fps": 10.0,
+          "width": 1242,
+          "height": 374,
+          "coded_frames": 233,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 140328,
+              "estimated_entropy_bits": 140136.0,
+              "pixels": 464508,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 240472,
+              "estimated_entropy_bits": 240192.0,
+              "pixels": 3251556,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 614432,
+              "estimated_entropy_bits": 613472.0,
+              "pixels": 11148192,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 541912,
+              "estimated_entropy_bits": 540632.0,
+              "pixels": 14864256,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 1690312,
+              "estimated_entropy_bits": 1683552.0,
+              "pixels": 78501852,
+              "coded_frames": 169
+            }
+          },
+          "map50": 0.5159744217885586,
+          "map5095": 0.15404629045279378,
+          "evaluated_images": 233,
+          "evaluated_classes": 2,
+          "map_by_iou": {
+            "0.50": 0.5159744217885586,
+            "0.55": 0.33389969351807064,
+            "0.60": 0.2163029914484367,
+            "0.65": 0.14586176106596077,
+            "0.70": 0.12371859752066593,
+            "0.75": 0.1013342956660153,
+            "0.80": 0.06121900614624891,
+            "0.85": 0.031723402192770374,
+            "0.90": 0.00932862517020933,
+            "0.95": 0.0011001100110011
+          }
+        },
+        {
+          "name": "KITTI_0006",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_24/KITTI_0006.vcm",
+          "actual_bits": 2264392,
+          "actual_bpp": 0.018054881804052972,
+          "estimated_entropy_bits": 2253440.0,
+          "estimated_bpp": 0.017967557230605447,
+          "actual_to_estimated_bpp_ratio": 1.0048601249644986,
+          "actual_minus_estimated_bits": 10952.0,
+          "kbps": 83.86637037037038,
+          "fps": 10.0,
+          "width": 1242,
+          "height": 374,
+          "coded_frames": 270,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 60248,
+              "estimated_entropy_bits": 60056.0,
+              "pixels": 464508,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 129552,
+              "estimated_entropy_bits": 129272.0,
+              "pixels": 3251556,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 44216,
+              "estimated_entropy_bits": 43256.0,
+              "pixels": 11148192,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 201824,
+              "estimated_entropy_bits": 200544.0,
+              "pixels": 14864256,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 1828552,
+              "estimated_entropy_bits": 1820312.0,
+              "pixels": 95688648,
+              "coded_frames": 206
+            }
+          },
+          "map50": 0.6900874054657548,
+          "map5095": 0.4134266810166543,
+          "evaluated_images": 270,
+          "evaluated_classes": 1,
+          "map_by_iou": {
+            "0.50": 0.6900874054657548,
+            "0.55": 0.6592480599246754,
+            "0.60": 0.6163645736285932,
+            "0.65": 0.5680363397134486,
+            "0.70": 0.5093508036982732,
+            "0.75": 0.4364281899484747,
+            "0.80": 0.3554754410879011,
+            "0.85": 0.21041274153941564,
+            "0.90": 0.08880175832709321,
+            "0.95": 6.149683291310496e-05
+          }
+        },
+        {
+          "name": "KITTI_0007",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_24/KITTI_0007.vcm",
+          "actual_bits": 15555176,
+          "actual_bpp": 0.04185927906516142,
+          "estimated_entropy_bits": 15523024.0,
+          "estimated_bpp": 0.041772757412143605,
+          "actual_to_estimated_bpp_ratio": 1.002071245911879,
+          "actual_minus_estimated_bits": 32152.0,
+          "kbps": 194.4397,
+          "fps": 10.0,
+          "width": 1242,
+          "height": 374,
+          "coded_frames": 800,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 142984,
+              "estimated_entropy_bits": 142792.0,
+              "pixels": 464508,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 164368,
+              "estimated_entropy_bits": 164088.0,
+              "pixels": 3251556,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 645336,
+              "estimated_entropy_bits": 644376.0,
+              "pixels": 11148192,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 801176,
+              "estimated_entropy_bits": 799896.0,
+              "pixels": 14864256,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 13801312,
+              "estimated_entropy_bits": 13771872.0,
+              "pixels": 341877888,
+              "coded_frames": 736
+            }
+          },
+          "map50": 0.4713324457151495,
+          "map5095": 0.27222131655556536,
+          "evaluated_images": 800,
+          "evaluated_classes": 2,
+          "map_by_iou": {
+            "0.50": 0.4713324457151495,
+            "0.55": 0.45296703007608535,
+            "0.60": 0.4074139754972104,
+            "0.65": 0.3677637203913635,
+            "0.70": 0.31889337499193665,
+            "0.75": 0.27870700174728197,
+            "0.80": 0.22184953976103,
+            "0.85": 0.14522615177380138,
+            "0.90": 0.05388474609700793,
+            "0.95": 0.004175179504787058
+          }
+        },
+        {
+          "name": "KITTI_0008",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_24/KITTI_0008.vcm",
+          "actual_bits": 3853904,
+          "actual_bpp": 0.02127370277412903,
+          "estimated_entropy_bits": 3838152.0,
+          "estimated_bpp": 0.021186751110024767,
+          "actual_to_estimated_bpp_ratio": 1.0041040584114438,
+          "actual_minus_estimated_bits": 15752.0,
+          "kbps": 98.81805128205129,
+          "fps": 10.0,
+          "width": 1242,
+          "height": 374,
+          "coded_frames": 390,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 49760,
+              "estimated_entropy_bits": 49568.0,
+              "pixels": 464508,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 102216,
+              "estimated_entropy_bits": 101936.0,
+              "pixels": 3251556,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 160704,
+              "estimated_entropy_bits": 159744.0,
+              "pixels": 11148192,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 313848,
+              "estimated_entropy_bits": 312568.0,
+              "pixels": 14864256,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 3227376,
+              "estimated_entropy_bits": 3214336.0,
+              "pixels": 151429608,
+              "coded_frames": 326
+            }
+          },
+          "map50": 0.809735539538394,
+          "map5095": 0.4358729291292084,
+          "evaluated_images": 390,
+          "evaluated_classes": 1,
+          "map_by_iou": {
+            "0.50": 0.809735539538394,
+            "0.55": 0.7772952750628863,
+            "0.60": 0.7405475334419779,
+            "0.65": 0.6807215373796028,
+            "0.70": 0.5690799656655352,
+            "0.75": 0.4121115415511928,
+            "0.80": 0.23774337818502647,
+            "0.85": 0.10503916722050793,
+            "0.90": 0.026268542113017913,
+            "0.95": 0.00018681113394358303
+          }
+        },
+        {
+          "name": "KITTI_0010",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_24/KITTI_0010.vcm",
+          "actual_bits": 4742928,
+          "actual_bpp": 0.034730097572625886,
+          "estimated_entropy_bits": 4731016.0,
+          "estimated_bpp": 0.034642871934310246,
+          "actual_to_estimated_bpp_ratio": 1.0025178524021057,
+          "actual_minus_estimated_bits": 11912.0,
+          "kbps": 161.32408163265305,
+          "fps": 10.0,
+          "width": 1242,
+          "height": 374,
+          "coded_frames": 294,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 55448,
+              "estimated_entropy_bits": 55256.0,
+              "pixels": 464508,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 99688,
+              "estimated_entropy_bits": 99408.0,
+              "pixels": 3251556,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 409592,
+              "estimated_entropy_bits": 408632.0,
+              "pixels": 11148192,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 676944,
+              "estimated_entropy_bits": 675664.0,
+              "pixels": 14864256,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 3501256,
+              "estimated_entropy_bits": 3492056.0,
+              "pixels": 106836840,
+              "coded_frames": 230
+            }
+          },
+          "map50": 0.4033626819110923,
+          "map5095": 0.24403271521212155,
+          "evaluated_images": 294,
+          "evaluated_classes": 2,
+          "map_by_iou": {
+            "0.50": 0.4033626819110923,
+            "0.55": 0.39768786359513614,
+            "0.60": 0.38188694350662,
+            "0.65": 0.3568170976945353,
+            "0.70": 0.3321153402984654,
+            "0.75": 0.3004360136952285,
+            "0.80": 0.2217623704940886,
+            "0.85": 0.043616639551215544,
+            "0.90": 0.0025390660613022627,
+            "0.95": 0.00010313531353135312
+          }
+        },
+        {
+          "name": "KITTI_0013",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_24/KITTI_0013.vcm",
+          "actual_bits": 4678144,
+          "actual_bpp": 0.029621119676783887,
+          "estimated_entropy_bits": 4664392.0,
+          "estimated_bpp": 0.02953404462355869,
+          "actual_to_estimated_bpp_ratio": 1.0029482942256998,
+          "actual_minus_estimated_bits": 13752.0,
+          "kbps": 137.5924705882353,
+          "fps": 10.0,
+          "width": 1242,
+          "height": 374,
+          "coded_frames": 340,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 73024,
+              "estimated_entropy_bits": 72832.0,
+              "pixels": 464508,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 121512,
+              "estimated_entropy_bits": 121232.0,
+              "pixels": 3251556,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 253664,
+              "estimated_entropy_bits": 252704.0,
+              "pixels": 11148192,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 413320,
+              "estimated_entropy_bits": 412040.0,
+              "pixels": 14864256,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 3816624,
+              "estimated_entropy_bits": 3805584.0,
+              "pixels": 128204208,
+              "coded_frames": 276
+            }
+          },
+          "map50": 0.484131019234936,
+          "map5095": 0.16876334225204584,
+          "evaluated_images": 340,
+          "evaluated_classes": 2,
+          "map_by_iou": {
+            "0.50": 0.484131019234936,
+            "0.55": 0.41093029831232686,
+            "0.60": 0.26816876492624814,
+            "0.65": 0.18797829288587695,
+            "0.70": 0.12381383635936982,
+            "0.75": 0.06420389352873343,
+            "0.80": 0.04903577297568068,
+            "0.85": 0.0472949080622348,
+            "0.90": 0.04712614118554713,
+            "0.95": 0.0049504950495049506
+          }
+        },
+        {
+          "name": "KITTI_0014",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_24/KITTI_0014.vcm",
+          "actual_bits": 1576560,
+          "actual_bpp": 0.032841387447380785,
+          "estimated_entropy_bits": 1572168.0,
+          "estimated_bpp": 0.03274989751127376,
+          "actual_to_estimated_bpp_ratio": 1.0027935945776787,
+          "actual_minus_estimated_bits": 4392.0,
+          "kbps": 148.73207547169812,
+          "fps": 10.0,
+          "width": 1224,
+          "height": 370,
+          "coded_frames": 106,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 108752,
+              "estimated_entropy_bits": 108560.0,
+              "pixels": 452880,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 136032,
+              "estimated_entropy_bits": 135752.0,
+              "pixels": 3170160,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 294816,
+              "estimated_entropy_bits": 293856.0,
+              "pixels": 10869120,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 534040,
+              "estimated_entropy_bits": 532760.0,
+              "pixels": 14492160,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 502920,
+              "estimated_entropy_bits": 501240.0,
+              "pixels": 19020960,
+              "coded_frames": 42
+            }
+          },
+          "map50": 0.2598796031638716,
+          "map5095": 0.10547454403122643,
+          "evaluated_images": 106,
+          "evaluated_classes": 2,
+          "map_by_iou": {
+            "0.50": 0.2598796031638716,
+            "0.55": 0.23852084979820445,
+            "0.60": 0.20373682094764836,
+            "0.65": 0.13697146419241768,
+            "0.70": 0.08989880673916097,
+            "0.75": 0.05296858647538085,
+            "0.80": 0.03416734013188612,
+            "0.85": 0.024984117716877422,
+            "0.90": 0.011142603622064335,
+            "0.95": 0.0024752475247524753
+          }
+        },
+        {
+          "name": "KITTI_0016",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_24/KITTI_0016.vcm",
+          "actual_bits": 2106200,
+          "actual_bpp": 0.022252057855773028,
+          "estimated_entropy_bits": 2097688.0,
+          "estimated_bpp": 0.022162128354078818,
+          "actual_to_estimated_bpp_ratio": 1.0040578007787622,
+          "actual_minus_estimated_bits": 8512.0,
+          "kbps": 100.77511961722487,
+          "fps": 10.0,
+          "width": 1224,
+          "height": 370,
+          "coded_frames": 209,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 71312,
+              "estimated_entropy_bits": 71120.0,
+              "pixels": 452880,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 127128,
+              "estimated_entropy_bits": 126848.0,
+              "pixels": 3170160,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 156288,
+              "estimated_entropy_bits": 155328.0,
+              "pixels": 10869120,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 277384,
+              "estimated_entropy_bits": 276104.0,
+              "pixels": 14492160,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 1474088,
+              "estimated_entropy_bits": 1468288.0,
+              "pixels": 65667600,
+              "coded_frames": 145
+            }
+          },
+          "map50": 0.643639787311717,
+          "map5095": 0.23139538228575587,
+          "evaluated_images": 209,
+          "evaluated_classes": 2,
+          "map_by_iou": {
+            "0.50": 0.643639787311717,
+            "0.55": 0.5808478326488461,
+            "0.60": 0.45160151256267306,
+            "0.65": 0.31472289073523285,
+            "0.70": 0.20388747469850552,
+            "0.75": 0.11332786263621747,
+            "0.80": 0.005920432428739832,
+            "0.85": 6.029835626680816e-06,
+            "0.90": 0.0,
+            "0.95": 0.0
+          }
+        },
+        {
+          "name": "KITTI_0018",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_24/KITTI_0018.vcm",
+          "actual_bits": 6067256,
+          "actual_bpp": 0.03865452801327779,
+          "estimated_entropy_bits": 6053544.0,
+          "estimated_bpp": 0.03856716877079353,
+          "actual_to_estimated_bpp_ratio": 1.0022651194077388,
+          "actual_minus_estimated_bits": 13712.0,
+          "kbps": 178.97510324483775,
+          "fps": 10.0,
+          "width": 1238,
+          "height": 374,
+          "coded_frames": 339,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 109784,
+              "estimated_entropy_bits": 109592.0,
+              "pixels": 463012,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 181552,
+              "estimated_entropy_bits": 181272.0,
+              "pixels": 3241084,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 436776,
+              "estimated_entropy_bits": 435816.0,
+              "pixels": 11112288,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 708976,
+              "estimated_entropy_bits": 707696.0,
+              "pixels": 14816384,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 4630168,
+              "estimated_entropy_bits": 4619168.0,
+              "pixels": 127328300,
+              "coded_frames": 275
+            }
+          },
+          "map50": 0.8980579772329667,
+          "map5095": 0.5734205747995847,
+          "evaluated_images": 339,
+          "evaluated_classes": 1,
+          "map_by_iou": {
+            "0.50": 0.8980579772329667,
+            "0.55": 0.8775373514639686,
+            "0.60": 0.8559866995047896,
+            "0.65": 0.8221968561729601,
+            "0.70": 0.7325398457863797,
+            "0.75": 0.6342046317262059,
+            "0.80": 0.4831681887242112,
+            "0.85": 0.3088897560990555,
+            "0.90": 0.12094864700400595,
+            "0.95": 0.0006757942813036241
+          }
+        }
+      ]
+    },
+    {
+      "base_qp": 36,
+      "video_checkpoint": "/kaggle/input/datasets/pduy05/pre-train/cvpr2025_video.pth.tar",
+      "hierarchical_qp": true,
+      "actual_bits": 101758896,
+      "actual_bpp": 0.07371010779594372,
+      "estimated_entropy_bits": 101638288.0,
+      "estimated_bpp": 0.07362274414489692,
+      "actual_to_estimated_bpp_ratio": 1.0011866394286373,
+      "actual_minus_estimated_bits": 120608.0,
+      "kbps": 341.35825561891977,
+      "coded_frames": 2981,
+      "map50": 0.6634596802630703,
+      "map5095": 0.32078793977886333,
+      "evaluated_images": 2981,
+      "evaluated_classes": 2,
+      "map_by_iou": {
+        "0.50": 0.6634596802630703,
+        "0.55": 0.609228506828263,
+        "0.60": 0.5438667951579259,
+        "0.65": 0.4557232072059731,
+        "0.70": 0.3520457473750118,
+        "0.75": 0.2518446679451516,
+        "0.80": 0.17743065168922367,
+        "0.85": 0.109490754136884,
+        "0.90": 0.04336086320137811,
+        "0.95": 0.0014285239857513977
+      },
+      "sequences": [
+        {
+          "name": "KITTI_0002",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_36/KITTI_0002.vcm",
+          "actual_bits": 7040304,
+          "actual_bpp": 0.06504924994985696,
+          "estimated_entropy_bits": 7030832.0,
+          "estimated_bpp": 0.06496173291997798,
+          "actual_to_estimated_bpp_ratio": 1.001347208978966,
+          "actual_minus_estimated_bits": 9472.0,
+          "kbps": 302.1589699570815,
+          "fps": 10.0,
+          "width": 1242,
+          "height": 374,
+          "coded_frames": 233,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 245304,
+              "estimated_entropy_bits": 245112.0,
+              "pixels": 464508,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 552112,
+              "estimated_entropy_bits": 551832.0,
+              "pixels": 3251556,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 1430240,
+              "estimated_entropy_bits": 1429280.0,
+              "pixels": 11148192,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 1261760,
+              "estimated_entropy_bits": 1260480.0,
+              "pixels": 14864256,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 3550888,
+              "estimated_entropy_bits": 3544128.0,
+              "pixels": 78501852,
+              "coded_frames": 169
+            }
+          },
+          "map50": 0.5523596051106026,
+          "map5095": 0.1758907237773914,
+          "evaluated_images": 233,
+          "evaluated_classes": 2,
+          "map_by_iou": {
+            "0.50": 0.5523596051106026,
+            "0.55": 0.3847003626174219,
+            "0.60": 0.262020815217846,
+            "0.65": 0.17025407865485254,
+            "0.70": 0.14153661260211894,
+            "0.75": 0.11664655845395538,
+            "0.80": 0.07696048650808264,
+            "0.85": 0.04034731046822004,
+            "0.90": 0.0121012101210121,
+            "0.95": 0.0019801980198019802
+          }
+        },
+        {
+          "name": "KITTI_0006",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_36/KITTI_0006.vcm",
+          "actual_bits": 4718224,
+          "actual_bpp": 0.037620242716387454,
+          "estimated_entropy_bits": 4707272.0,
+          "estimated_bpp": 0.03753291814293993,
+          "actual_to_estimated_bpp_ratio": 1.0023266129511954,
+          "actual_minus_estimated_bits": 10952.0,
+          "kbps": 174.74903703703703,
+          "fps": 10.0,
+          "width": 1242,
+          "height": 374,
+          "coded_frames": 270,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 111296,
+              "estimated_entropy_bits": 111104.0,
+              "pixels": 464508,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 222456,
+              "estimated_entropy_bits": 222176.0,
+              "pixels": 3251556,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 106656,
+              "estimated_entropy_bits": 105696.0,
+              "pixels": 11148192,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 397400,
+              "estimated_entropy_bits": 396120.0,
+              "pixels": 14864256,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 3880416,
+              "estimated_entropy_bits": 3872176.0,
+              "pixels": 95688648,
+              "coded_frames": 206
+            }
+          },
+          "map50": 0.6920582854778012,
+          "map5095": 0.42400650214730556,
+          "evaluated_images": 270,
+          "evaluated_classes": 1,
+          "map_by_iou": {
+            "0.50": 0.6920582854778012,
+            "0.55": 0.6612375133618649,
+            "0.60": 0.6209624829063953,
+            "0.65": 0.5678659684528972,
+            "0.70": 0.5282057421473301,
+            "0.75": 0.446760131223358,
+            "0.80": 0.3849281350620475,
+            "0.85": 0.23425829021224034,
+            "0.90": 0.10245469263458044,
+            "0.95": 0.0013337799945408076
+          }
+        },
+        {
+          "name": "KITTI_0007",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_36/KITTI_0007.vcm",
+          "actual_bits": 37756088,
+          "actual_bpp": 0.101602362069114,
+          "estimated_entropy_bits": 37723936.0,
+          "estimated_bpp": 0.10151584041609617,
+          "actual_to_estimated_bpp_ratio": 1.0008522970667748,
+          "actual_minus_estimated_bits": 32152.0,
+          "kbps": 471.9511,
+          "fps": 10.0,
+          "width": 1242,
+          "height": 374,
+          "coded_frames": 800,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 247976,
+              "estimated_entropy_bits": 247784.0,
+              "pixels": 464508,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 320568,
+              "estimated_entropy_bits": 320288.0,
+              "pixels": 3251556,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 1579816,
+              "estimated_entropy_bits": 1578856.0,
+              "pixels": 11148192,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 1934880,
+              "estimated_entropy_bits": 1933600.0,
+              "pixels": 14864256,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 33672848,
+              "estimated_entropy_bits": 33643408.0,
+              "pixels": 341877888,
+              "coded_frames": 736
+            }
+          },
+          "map50": 0.5691624823742601,
+          "map5095": 0.33830677408818866,
+          "evaluated_images": 800,
+          "evaluated_classes": 2,
+          "map_by_iou": {
+            "0.50": 0.5691624823742601,
+            "0.55": 0.5347267346222657,
+            "0.60": 0.5074971577733357,
+            "0.65": 0.4585111729644457,
+            "0.70": 0.39528690346435613,
+            "0.75": 0.34512023746047465,
+            "0.80": 0.2884122523842515,
+            "0.85": 0.19483303701965793,
+            "0.90": 0.08393560041046852,
+            "0.95": 0.005582162408371335
+          }
+        },
+        {
+          "name": "KITTI_0008",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_36/KITTI_0008.vcm",
+          "actual_bits": 8804928,
+          "actual_bpp": 0.04860355141685065,
+          "estimated_entropy_bits": 8789176.0,
+          "estimated_bpp": 0.04851659975274639,
+          "actual_to_estimated_bpp_ratio": 1.001792204411426,
+          "actual_minus_estimated_bits": 15752.0,
+          "kbps": 225.76738461538463,
+          "fps": 10.0,
+          "width": 1242,
+          "height": 374,
+          "coded_frames": 390,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 96184,
+              "estimated_entropy_bits": 95992.0,
+              "pixels": 464508,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 216832,
+              "estimated_entropy_bits": 216552.0,
+              "pixels": 3251556,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 383120,
+              "estimated_entropy_bits": 382160.0,
+              "pixels": 11148192,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 713048,
+              "estimated_entropy_bits": 711768.0,
+              "pixels": 14864256,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 7395744,
+              "estimated_entropy_bits": 7382704.0,
+              "pixels": 151429608,
+              "coded_frames": 326
+            }
+          },
+          "map50": 0.7986754156202237,
+          "map5095": 0.44827284320279237,
+          "evaluated_images": 390,
+          "evaluated_classes": 1,
+          "map_by_iou": {
+            "0.50": 0.7986754156202237,
+            "0.55": 0.7864785826381567,
+            "0.60": 0.753145896238008,
+            "0.65": 0.6947040203031667,
+            "0.70": 0.5932788332736967,
+            "0.75": 0.43798618475830997,
+            "0.80": 0.26163102800201204,
+            "0.85": 0.1227429814531861,
+            "0.90": 0.03408548974116322,
+            "0.95": 0.0
+          }
+        },
+        {
+          "name": "KITTI_0010",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_36/KITTI_0010.vcm",
+          "actual_bits": 11099144,
+          "actual_bpp": 0.08127349900580932,
+          "estimated_entropy_bits": 11087232.0,
+          "estimated_bpp": 0.08118627336749368,
+          "actual_to_estimated_bpp_ratio": 1.001074388990868,
+          "actual_minus_estimated_bits": 11912.0,
+          "kbps": 377.52190476190475,
+          "fps": 10.0,
+          "width": 1242,
+          "height": 374,
+          "coded_frames": 294,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 102992,
+              "estimated_entropy_bits": 102800.0,
+              "pixels": 464508,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 226760,
+              "estimated_entropy_bits": 226480.0,
+              "pixels": 3251556,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 952120,
+              "estimated_entropy_bits": 951160.0,
+              "pixels": 11148192,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 1550472,
+              "estimated_entropy_bits": 1549192.0,
+              "pixels": 14864256,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 8266800,
+              "estimated_entropy_bits": 8257600.0,
+              "pixels": 106836840,
+              "coded_frames": 230
+            }
+          },
+          "map50": 0.46999027082767236,
+          "map5095": 0.26154628984751555,
+          "evaluated_images": 294,
+          "evaluated_classes": 2,
+          "map_by_iou": {
+            "0.50": 0.46999027082767236,
+            "0.55": 0.4302111535487785,
+            "0.60": 0.3996497048987128,
+            "0.65": 0.374482799900259,
+            "0.70": 0.3422541023211045,
+            "0.75": 0.30083734499721343,
+            "0.80": 0.2301454364047052,
+            "0.85": 0.06390892864032653,
+            "0.90": 0.003897803573460794,
+            "0.95": 8.535336292249915e-05
+          }
+        },
+        {
+          "name": "KITTI_0013",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_36/KITTI_0013.vcm",
+          "actual_bits": 10315568,
+          "actual_bpp": 0.06531621819721714,
+          "estimated_entropy_bits": 10301816.0,
+          "estimated_bpp": 0.06522914314399195,
+          "actual_to_estimated_bpp_ratio": 1.0013349102721307,
+          "actual_minus_estimated_bits": 13752.0,
+          "kbps": 303.3990588235294,
+          "fps": 10.0,
+          "width": 1242,
+          "height": 374,
+          "coded_frames": 340,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 132976,
+              "estimated_entropy_bits": 132784.0,
+              "pixels": 464508,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 274504,
+              "estimated_entropy_bits": 274224.0,
+              "pixels": 3251556,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 599496,
+              "estimated_entropy_bits": 598536.0,
+              "pixels": 11148192,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 953208,
+              "estimated_entropy_bits": 951928.0,
+              "pixels": 14864256,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 8355384,
+              "estimated_entropy_bits": 8344344.0,
+              "pixels": 128204208,
+              "coded_frames": 276
+            }
+          },
+          "map50": 0.5159194954262278,
+          "map5095": 0.1815841235865782,
+          "evaluated_images": 340,
+          "evaluated_classes": 2,
+          "map_by_iou": {
+            "0.50": 0.5159194954262278,
+            "0.55": 0.4035512172768902,
+            "0.60": 0.2979044843866501,
+            "0.65": 0.22047183611343146,
+            "0.70": 0.1408124659554857,
+            "0.75": 0.08339652714801449,
+            "0.80": 0.05415649668779508,
+            "0.85": 0.05033003300330033,
+            "0.90": 0.04867986798679868,
+            "0.95": 0.0006188118811881188
+          }
+        },
+        {
+          "name": "KITTI_0014",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_36/KITTI_0014.vcm",
+          "actual_bits": 3728392,
+          "actual_bpp": 0.07766629004142878,
+          "estimated_entropy_bits": 3724000.0,
+          "estimated_bpp": 0.07757480010532175,
+          "actual_to_estimated_bpp_ratio": 1.0011793770139634,
+          "actual_minus_estimated_bits": 4392.0,
+          "kbps": 351.73509433962266,
+          "fps": 10.0,
+          "width": 1224,
+          "height": 370,
+          "coded_frames": 106,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 185944,
+              "estimated_entropy_bits": 185752.0,
+              "pixels": 452880,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 241664,
+              "estimated_entropy_bits": 241384.0,
+              "pixels": 3170160,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 713000,
+              "estimated_entropy_bits": 712040.0,
+              "pixels": 10869120,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 1329152,
+              "estimated_entropy_bits": 1327872.0,
+              "pixels": 14492160,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 1258632,
+              "estimated_entropy_bits": 1256952.0,
+              "pixels": 19020960,
+              "coded_frames": 42
+            }
+          },
+          "map50": 0.2930676282771606,
+          "map5095": 0.13201903326307973,
+          "evaluated_images": 106,
+          "evaluated_classes": 2,
+          "map_by_iou": {
+            "0.50": 0.2930676282771606,
+            "0.55": 0.27056658080124346,
+            "0.60": 0.24568347863480436,
+            "0.65": 0.18063203332780953,
+            "0.70": 0.12266687477929909,
+            "0.75": 0.07870890766175297,
+            "0.80": 0.062214455010286454,
+            "0.85": 0.03834004756555478,
+            "0.90": 0.01840933647387623,
+            "0.95": 0.009900990099009901
+          }
+        },
+        {
+          "name": "KITTI_0016",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_36/KITTI_0016.vcm",
+          "actual_bits": 4178248,
+          "actual_bpp": 0.04414329894206055,
+          "estimated_entropy_bits": 4169736.0,
+          "estimated_bpp": 0.04405336944036634,
+          "actual_to_estimated_bpp_ratio": 1.0020413762406062,
+          "actual_minus_estimated_bits": 8512.0,
+          "kbps": 199.91617224880383,
+          "fps": 10.0,
+          "width": 1224,
+          "height": 370,
+          "coded_frames": 209,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 129328,
+              "estimated_entropy_bits": 129136.0,
+              "pixels": 452880,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 221472,
+              "estimated_entropy_bits": 221192.0,
+              "pixels": 3170160,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 334200,
+              "estimated_entropy_bits": 333240.0,
+              "pixels": 10869120,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 553288,
+              "estimated_entropy_bits": 552008.0,
+              "pixels": 14492160,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 2939960,
+              "estimated_entropy_bits": 2934160.0,
+              "pixels": 65667600,
+              "coded_frames": 145
+            }
+          },
+          "map50": 0.6862311544838706,
+          "map5095": 0.2829566317611934,
+          "evaluated_images": 209,
+          "evaluated_classes": 2,
+          "map_by_iou": {
+            "0.50": 0.6862311544838706,
+            "0.55": 0.6469951036404273,
+            "0.60": 0.5741680743646613,
+            "0.65": 0.4538432076286641,
+            "0.70": 0.3067866896085686,
+            "0.75": 0.13999839774621461,
+            "0.80": 0.021516006450105457,
+            "0.85": 2.7683689421573736e-05,
+            "0.90": 0.0,
+            "0.95": 0.0
+          }
+        },
+        {
+          "name": "KITTI_0018",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_36/KITTI_0018.vcm",
+          "actual_bits": 14118000,
+          "actual_bpp": 0.08994587116341486,
+          "estimated_entropy_bits": 14104288.0,
+          "estimated_bpp": 0.08985851192093061,
+          "actual_to_estimated_bpp_ratio": 1.0009721866144536,
+          "actual_minus_estimated_bits": 13712.0,
+          "kbps": 416.46017699115043,
+          "fps": 10.0,
+          "width": 1238,
+          "height": 374,
+          "coded_frames": 339,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 193872,
+              "estimated_entropy_bits": 193680.0,
+              "pixels": 463012,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 418280,
+              "estimated_entropy_bits": 418000.0,
+              "pixels": 3241084,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 1069864,
+              "estimated_entropy_bits": 1068904.0,
+              "pixels": 11112288,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 1670808,
+              "estimated_entropy_bits": 1669528.0,
+              "pixels": 14816384,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 10765176,
+              "estimated_entropy_bits": 10754176.0,
+              "pixels": 127328300,
+              "coded_frames": 275
+            }
+          },
+          "map50": 0.8886073608914808,
+          "map5095": 0.5764601440601904,
+          "evaluated_images": 339,
+          "evaluated_classes": 1,
+          "map_by_iou": {
+            "0.50": 0.8886073608914808,
+            "0.55": 0.8683258833300406,
+            "0.60": 0.8564588090298173,
+            "0.65": 0.8239577926037754,
+            "0.70": 0.7465634876589493,
+            "0.75": 0.6447799076178852,
+            "0.80": 0.4765165725627137,
+            "0.85": 0.3254764930358046,
+            "0.90": 0.13284428210541002,
+            "0.95": 0.0010708517660276665
+          }
+        }
+      ]
+    },
+    {
+      "base_qp": 48,
+      "video_checkpoint": "/kaggle/input/datasets/pduy05/pre-train/cvpr2025_video.pth.tar",
+      "hierarchical_qp": true,
+      "actual_bits": 220722504,
+      "actual_bpp": 0.1598826265059973,
+      "estimated_entropy_bits": 220601896.0,
+      "estimated_bpp": 0.15979526285495047,
+      "actual_to_estimated_bpp_ratio": 1.0005467224089497,
+      "actual_minus_estimated_bits": 120608.0,
+      "kbps": 740.4310768198591,
+      "coded_frames": 2981,
+      "map50": 0.6758203553512276,
+      "map5095": 0.3337532824764613,
+      "evaluated_images": 2981,
+      "evaluated_classes": 2,
+      "map_by_iou": {
+        "0.50": 0.6758203553512276,
+        "0.55": 0.6246103779139329,
+        "0.60": 0.5639536214921677,
+        "0.65": 0.48105215158837045,
+        "0.70": 0.3774238429871996,
+        "0.75": 0.2641822366116014,
+        "0.80": 0.1835953467974271,
+        "0.85": 0.11470730248177838,
+        "0.90": 0.049598208448229986,
+        "0.95": 0.002589381092678082
+      },
+      "sequences": [
+        {
+          "name": "KITTI_0002",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_48/KITTI_0002.vcm",
+          "actual_bits": 14451864,
+          "actual_bpp": 0.13352873875578947,
+          "estimated_entropy_bits": 14442392.0,
+          "estimated_bpp": 0.1334412217259105,
+          "actual_to_estimated_bpp_ratio": 1.0006558470369729,
+          "actual_minus_estimated_bits": 9472.0,
+          "kbps": 620.2516738197425,
+          "fps": 10.0,
+          "width": 1242,
+          "height": 374,
+          "coded_frames": 233,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 404352,
+              "estimated_entropy_bits": 404160.0,
+              "pixels": 464508,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 1125464,
+              "estimated_entropy_bits": 1125184.0,
+              "pixels": 3251556,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 2986888,
+              "estimated_entropy_bits": 2985928.0,
+              "pixels": 11148192,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 2755528,
+              "estimated_entropy_bits": 2754248.0,
+              "pixels": 14864256,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 7179632,
+              "estimated_entropy_bits": 7172872.0,
+              "pixels": 78501852,
+              "coded_frames": 169
+            }
+          },
+          "map50": 0.5662569028858194,
+          "map5095": 0.17975466094942985,
+          "evaluated_images": 233,
+          "evaluated_classes": 2,
+          "map_by_iou": {
+            "0.50": 0.5662569028858194,
+            "0.55": 0.38015035097318983,
+            "0.60": 0.25462997056139736,
+            "0.65": 0.17679637319036234,
+            "0.70": 0.152229308469051,
+            "0.75": 0.12416362948051717,
+            "0.80": 0.08090795116245406,
+            "0.85": 0.045779910099690756,
+            "0.90": 0.014156965147064157,
+            "0.95": 0.0024752475247524753
+          }
+        },
+        {
+          "name": "KITTI_0006",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_48/KITTI_0006.vcm",
+          "actual_bits": 9579960,
+          "actual_bpp": 0.07638476265927246,
+          "estimated_entropy_bits": 9569008.0,
+          "estimated_bpp": 0.07629743808582494,
+          "actual_to_estimated_bpp_ratio": 1.0011445282520404,
+          "actual_minus_estimated_bits": 10952.0,
+          "kbps": 354.81333333333333,
+          "fps": 10.0,
+          "width": 1242,
+          "height": 374,
+          "coded_frames": 270,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 213472,
+              "estimated_entropy_bits": 213280.0,
+              "pixels": 464508,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 322848,
+              "estimated_entropy_bits": 322568.0,
+              "pixels": 3251556,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 245448,
+              "estimated_entropy_bits": 244488.0,
+              "pixels": 11148192,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 704528,
+              "estimated_entropy_bits": 703248.0,
+              "pixels": 14864256,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 8093664,
+              "estimated_entropy_bits": 8085424.0,
+              "pixels": 95688648,
+              "coded_frames": 206
+            }
+          },
+          "map50": 0.715552497699974,
+          "map5095": 0.43904429955878976,
+          "evaluated_images": 270,
+          "evaluated_classes": 1,
+          "map_by_iou": {
+            "0.50": 0.715552497699974,
+            "0.55": 0.6850902389994032,
+            "0.60": 0.6414442139355383,
+            "0.65": 0.5830894739074193,
+            "0.70": 0.5309606766899202,
+            "0.75": 0.45986476635982226,
+            "0.80": 0.39998266793006576,
+            "0.85": 0.24861112687912645,
+            "0.90": 0.12175037176634815,
+            "0.95": 0.004096961420279959
+          }
+        },
+        {
+          "name": "KITTI_0007",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_48/KITTI_0007.vcm",
+          "actual_bits": 83047232,
+          "actual_bpp": 0.2234817053742885,
+          "estimated_entropy_bits": 83015080.0,
+          "estimated_bpp": 0.22339518372127068,
+          "actual_to_estimated_bpp_ratio": 1.0003873031261308,
+          "actual_minus_estimated_bits": 32152.0,
+          "kbps": 1038.0904,
+          "fps": 10.0,
+          "width": 1242,
+          "height": 374,
+          "coded_frames": 800,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 409856,
+              "estimated_entropy_bits": 409664.0,
+              "pixels": 464508,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 648048,
+              "estimated_entropy_bits": 647768.0,
+              "pixels": 3251556,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 3370976,
+              "estimated_entropy_bits": 3370016.0,
+              "pixels": 11148192,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 4221088,
+              "estimated_entropy_bits": 4219808.0,
+              "pixels": 14864256,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 74397264,
+              "estimated_entropy_bits": 74367824.0,
+              "pixels": 341877888,
+              "coded_frames": 736
+            }
+          },
+          "map50": 0.5930140437773671,
+          "map5095": 0.3564751572770893,
+          "evaluated_images": 800,
+          "evaluated_classes": 2,
+          "map_by_iou": {
+            "0.50": 0.5930140437773671,
+            "0.55": 0.556694615644906,
+            "0.60": 0.5208400730154623,
+            "0.65": 0.4966478020208154,
+            "0.70": 0.43229456690533175,
+            "0.75": 0.3477062595847043,
+            "0.80": 0.2950519635430861,
+            "0.85": 0.20826354716134926,
+            "0.90": 0.10464372804619254,
+            "0.95": 0.00959497307167796
+          }
+        },
+        {
+          "name": "KITTI_0008",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_48/KITTI_0008.vcm",
+          "actual_bits": 20780440,
+          "actual_bpp": 0.11470885213425708,
+          "estimated_entropy_bits": 20764688.0,
+          "estimated_bpp": 0.11462190047015282,
+          "actual_to_estimated_bpp_ratio": 1.0007585955541447,
+          "actual_minus_estimated_bits": 15752.0,
+          "kbps": 532.8317948717948,
+          "fps": 10.0,
+          "width": 1242,
+          "height": 374,
+          "coded_frames": 390,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 184664,
+              "estimated_entropy_bits": 184472.0,
+              "pixels": 464508,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 474632,
+              "estimated_entropy_bits": 474352.0,
+              "pixels": 3251556,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 990488,
+              "estimated_entropy_bits": 989528.0,
+              "pixels": 11148192,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 1692776,
+              "estimated_entropy_bits": 1691496.0,
+              "pixels": 14864256,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 17437880,
+              "estimated_entropy_bits": 17424840.0,
+              "pixels": 151429608,
+              "coded_frames": 326
+            }
+          },
+          "map50": 0.8009438512346748,
+          "map5095": 0.44652590270510284,
+          "evaluated_images": 390,
+          "evaluated_classes": 1,
+          "map_by_iou": {
+            "0.50": 0.8009438512346748,
+            "0.55": 0.7873834375595009,
+            "0.60": 0.743542822573207,
+            "0.65": 0.6961592131107334,
+            "0.70": 0.582398055384414,
+            "0.75": 0.431548075689403,
+            "0.80": 0.2626511286067665,
+            "0.85": 0.12525030779686006,
+            "0.90": 0.03538213509546946,
+            "0.95": 0.0
+          }
+        },
+        {
+          "name": "KITTI_0010",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_48/KITTI_0010.vcm",
+          "actual_bits": 24597616,
+          "actual_bpp": 0.1801160809807747,
+          "estimated_entropy_bits": 24585704.0,
+          "estimated_bpp": 0.18002885534245905,
+          "actual_to_estimated_bpp_ratio": 1.0004845092090915,
+          "actual_minus_estimated_bits": 11912.0,
+          "kbps": 836.6536054421769,
+          "fps": 10.0,
+          "width": 1242,
+          "height": 374,
+          "coded_frames": 294,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 189488,
+              "estimated_entropy_bits": 189296.0,
+              "pixels": 464508,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 496512,
+              "estimated_entropy_bits": 496232.0,
+              "pixels": 3251556,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 2131984,
+              "estimated_entropy_bits": 2131024.0,
+              "pixels": 11148192,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 3332120,
+              "estimated_entropy_bits": 3330840.0,
+              "pixels": 14864256,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 18447512,
+              "estimated_entropy_bits": 18438312.0,
+              "pixels": 106836840,
+              "coded_frames": 230
+            }
+          },
+          "map50": 0.5069195035637121,
+          "map5095": 0.2814132810915805,
+          "evaluated_images": 294,
+          "evaluated_classes": 2,
+          "map_by_iou": {
+            "0.50": 0.5069195035637121,
+            "0.55": 0.4784434548177509,
+            "0.60": 0.4206404746585955,
+            "0.65": 0.38677199860163,
+            "0.70": 0.361404541644412,
+            "0.75": 0.327700271050324,
+            "0.80": 0.24992888816895717,
+            "0.85": 0.0769885322197478,
+            "0.90": 0.005252637939850323,
+            "0.95": 8.250825082508251e-05
+          }
+        },
+        {
+          "name": "KITTI_0013",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_48/KITTI_0013.vcm",
+          "actual_bits": 22035400,
+          "actual_bpp": 0.1395239694472431,
+          "estimated_entropy_bits": 22021648.0,
+          "estimated_bpp": 0.1394368943940179,
+          "actual_to_estimated_bpp_ratio": 1.0006244764242893,
+          "actual_minus_estimated_bits": 13752.0,
+          "kbps": 648.1,
+          "fps": 10.0,
+          "width": 1242,
+          "height": 374,
+          "coded_frames": 340,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 236416,
+              "estimated_entropy_bits": 236224.0,
+              "pixels": 464508,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 609688,
+              "estimated_entropy_bits": 609408.0,
+              "pixels": 3251556,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 1454400,
+              "estimated_entropy_bits": 1453440.0,
+              "pixels": 11148192,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 2131720,
+              "estimated_entropy_bits": 2130440.0,
+              "pixels": 14864256,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 17603176,
+              "estimated_entropy_bits": 17592136.0,
+              "pixels": 128204208,
+              "coded_frames": 276
+            }
+          },
+          "map50": 0.5777614043713895,
+          "map5095": 0.21585873024095217,
+          "evaluated_images": 340,
+          "evaluated_classes": 2,
+          "map_by_iou": {
+            "0.50": 0.5777614043713895,
+            "0.55": 0.5029040394304121,
+            "0.60": 0.3510705257827964,
+            "0.65": 0.24874902273861563,
+            "0.70": 0.17662233641712566,
+            "0.75": 0.11013272784294506,
+            "0.80": 0.07098753543659359,
+            "0.85": 0.060781078107810776,
+            "0.90": 0.05952106838590836,
+            "0.95": 5.7563895924476166e-05
+          }
+        },
+        {
+          "name": "KITTI_0014",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_48/KITTI_0014.vcm",
+          "actual_bits": 8238488,
+          "actual_bpp": 0.17161628887489042,
+          "estimated_entropy_bits": 8234096.0,
+          "estimated_bpp": 0.1715247989387834,
+          "actual_to_estimated_bpp_ratio": 1.000533391886614,
+          "actual_minus_estimated_bits": 4392.0,
+          "kbps": 777.2158490566038,
+          "fps": 10.0,
+          "width": 1224,
+          "height": 370,
+          "coded_frames": 106,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 303712,
+              "estimated_entropy_bits": 303520.0,
+              "pixels": 452880,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 450488,
+              "estimated_entropy_bits": 450208.0,
+              "pixels": 3170160,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 1563640,
+              "estimated_entropy_bits": 1562680.0,
+              "pixels": 10869120,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 2971792,
+              "estimated_entropy_bits": 2970512.0,
+              "pixels": 14492160,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 2948856,
+              "estimated_entropy_bits": 2947176.0,
+              "pixels": 19020960,
+              "coded_frames": 42
+            }
+          },
+          "map50": 0.32364499675468655,
+          "map5095": 0.1459406449962275,
+          "evaluated_images": 106,
+          "evaluated_classes": 2,
+          "map_by_iou": {
+            "0.50": 0.32364499675468655,
+            "0.55": 0.28268604740127307,
+            "0.60": 0.2471135195010024,
+            "0.65": 0.20510568301281645,
+            "0.70": 0.1392195010415756,
+            "0.75": 0.10274817664598976,
+            "0.80": 0.07817196247498237,
+            "0.85": 0.049467710899733806,
+            "0.90": 0.021347862131205167,
+            "0.95": 0.009900990099009901
+          }
+        },
+        {
+          "name": "KITTI_0016",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_48/KITTI_0016.vcm",
+          "actual_bits": 7876456,
+          "actual_bpp": 0.08321496278152625,
+          "estimated_entropy_bits": 7867944.0,
+          "estimated_bpp": 0.08312503327983205,
+          "actual_to_estimated_bpp_ratio": 1.0010818582338665,
+          "actual_minus_estimated_bits": 8512.0,
+          "kbps": 376.8639234449761,
+          "fps": 10.0,
+          "width": 1224,
+          "height": 370,
+          "coded_frames": 209,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 227024,
+              "estimated_entropy_bits": 226832.0,
+              "pixels": 452880,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 359560,
+              "estimated_entropy_bits": 359280.0,
+              "pixels": 3170160,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 667632,
+              "estimated_entropy_bits": 666672.0,
+              "pixels": 10869120,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 1038768,
+              "estimated_entropy_bits": 1037488.0,
+              "pixels": 14492160,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 5583472,
+              "estimated_entropy_bits": 5577672.0,
+              "pixels": 65667600,
+              "coded_frames": 145
+            }
+          },
+          "map50": 0.6824532585107064,
+          "map5095": 0.29990498263340265,
+          "evaluated_images": 209,
+          "evaluated_classes": 2,
+          "map_by_iou": {
+            "0.50": 0.6824532585107064,
+            "0.55": 0.6451397239010686,
+            "0.60": 0.6003058135309758,
+            "0.65": 0.5139868033306233,
+            "0.70": 0.3841195900536865,
+            "0.75": 0.14948086770310073,
+            "0.80": 0.023514264353370274,
+            "0.85": 4.950495049504951e-05,
+            "0.90": 0.0,
+            "0.95": 0.0
+          }
+        },
+        {
+          "name": "KITTI_0018",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_48/KITTI_0018.vcm",
+          "actual_bits": 30115048,
+          "actual_bpp": 0.19186316953449883,
+          "estimated_entropy_bits": 30101336.0,
+          "estimated_bpp": 0.19177581029201457,
+          "actual_to_estimated_bpp_ratio": 1.0004555279539753,
+          "actual_minus_estimated_bits": 13712.0,
+          "kbps": 888.3494985250737,
+          "fps": 10.0,
+          "width": 1238,
+          "height": 374,
+          "coded_frames": 339,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 332912,
+              "estimated_entropy_bits": 332720.0,
+              "pixels": 463012,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 868400,
+              "estimated_entropy_bits": 868120.0,
+              "pixels": 3241084,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 2334728,
+              "estimated_entropy_bits": 2333768.0,
+              "pixels": 11112288,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 3502576,
+              "estimated_entropy_bits": 3501296.0,
+              "pixels": 14816384,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 23076432,
+              "estimated_entropy_bits": 23065432.0,
+              "pixels": 127328300,
+              "coded_frames": 275
+            }
+          },
+          "map50": 0.8886822567469151,
+          "map5095": 0.5760924084009452,
+          "evaluated_images": 339,
+          "evaluated_classes": 1,
+          "map_by_iou": {
+            "0.50": 0.8886822567469151,
+            "0.55": 0.877782650155356,
+            "0.60": 0.8453930522833889,
+            "0.65": 0.8119394451936027,
+            "0.70": 0.7462826512412755,
+            "0.75": 0.6486285348074631,
+            "0.80": 0.48277423122108293,
+            "0.85": 0.31983003298196394,
+            "0.90": 0.13840801726975355,
+            "0.95": 0.0012032121086504785
+          }
+        }
+      ]
+    },
+    {
+      "base_qp": 63,
+      "video_checkpoint": "/kaggle/input/datasets/pduy05/pre-train/cvpr2025_video.pth.tar",
+      "hierarchical_qp": true,
+      "actual_bits": 489898224,
+      "actual_bpp": 0.3548628406904236,
+      "estimated_entropy_bits": 489777616.0,
+      "estimated_bpp": 0.35477547703937684,
+      "actual_to_estimated_bpp_ratio": 1.0002462505350591,
+      "actual_minus_estimated_bits": 120608.0,
+      "kbps": 1643.4022945320362,
+      "coded_frames": 2981,
+      "map50": 0.6922024250528732,
+      "map5095": 0.34361960424470006,
+      "evaluated_images": 2981,
+      "evaluated_classes": 2,
+      "map_by_iou": {
+        "0.50": 0.6922024250528732,
+        "0.55": 0.6397200392727755,
+        "0.60": 0.5799769401348402,
+        "0.65": 0.49529155256187596,
+        "0.70": 0.3938963840113426,
+        "0.75": 0.2709739653089558,
+        "0.80": 0.18583277264187717,
+        "0.85": 0.11993503072477765,
+        "0.90": 0.055106286036055316,
+        "0.95": 0.003260646701627335
+      },
+      "sequences": [
+        {
+          "name": "KITTI_0002",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_63/KITTI_0002.vcm",
+          "actual_bits": 30627408,
+          "actual_bpp": 0.2829835072900614,
+          "estimated_entropy_bits": 30617936.0,
+          "estimated_bpp": 0.2828959902601824,
+          "actual_to_estimated_bpp_ratio": 1.0003093611535407,
+          "actual_minus_estimated_bits": 9472.0,
+          "kbps": 1314.4810300429185,
+          "fps": 10.0,
+          "width": 1242,
+          "height": 374,
+          "coded_frames": 233,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 637288,
+              "estimated_entropy_bits": 637096.0,
+              "pixels": 464508,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 2148528,
+              "estimated_entropy_bits": 2148248.0,
+              "pixels": 3251556,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 5934312,
+              "estimated_entropy_bits": 5933352.0,
+              "pixels": 11148192,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 6091640,
+              "estimated_entropy_bits": 6090360.0,
+              "pixels": 14864256,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 15815640,
+              "estimated_entropy_bits": 15808880.0,
+              "pixels": 78501852,
+              "coded_frames": 169
+            }
+          },
+          "map50": 0.5728220546831801,
+          "map5095": 0.1846619311541242,
+          "evaluated_images": 233,
+          "evaluated_classes": 2,
+          "map_by_iou": {
+            "0.50": 0.5728220546831801,
+            "0.55": 0.38717113435617406,
+            "0.60": 0.2694047739749642,
+            "0.65": 0.1825781683944457,
+            "0.70": 0.15677710817123827,
+            "0.75": 0.12866647159061068,
+            "0.80": 0.07933017667105945,
+            "0.85": 0.049492861152242,
+            "0.90": 0.015426067497822372,
+            "0.95": 0.0049504950495049506
+          }
+        },
+        {
+          "name": "KITTI_0006",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_63/KITTI_0006.vcm",
+          "actual_bits": 21990456,
+          "actual_bpp": 0.17533849434957705,
+          "estimated_entropy_bits": 21979504.0,
+          "estimated_bpp": 0.1752511697761295,
+          "actual_to_estimated_bpp_ratio": 1.0004982823998212,
+          "actual_minus_estimated_bits": 10952.0,
+          "kbps": 814.4613333333333,
+          "fps": 10.0,
+          "width": 1242,
+          "height": 374,
+          "coded_frames": 270,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 417336,
+              "estimated_entropy_bits": 417144.0,
+              "pixels": 464508,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 455120,
+              "estimated_entropy_bits": 454840.0,
+              "pixels": 3251556,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 559256,
+              "estimated_entropy_bits": 558296.0,
+              "pixels": 11148192,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 1288616,
+              "estimated_entropy_bits": 1287336.0,
+              "pixels": 14864256,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 19270128,
+              "estimated_entropy_bits": 19261888.0,
+              "pixels": 95688648,
+              "coded_frames": 206
+            }
+          },
+          "map50": 0.7261979014960291,
+          "map5095": 0.44781695944078204,
+          "evaluated_images": 270,
+          "evaluated_classes": 1,
+          "map_by_iou": {
+            "0.50": 0.7261979014960291,
+            "0.55": 0.6933355434174273,
+            "0.60": 0.6535601156303462,
+            "0.65": 0.5995674876065609,
+            "0.70": 0.5419428194756086,
+            "0.75": 0.4614412090470539,
+            "0.80": 0.3960483638810238,
+            "0.85": 0.27487498197574134,
+            "0.90": 0.1274212213465661,
+            "0.95": 0.0037799505314632083
+          }
+        },
+        {
+          "name": "KITTI_0007",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_63/KITTI_0007.vcm",
+          "actual_bits": 176358456,
+          "actual_bpp": 0.47458401147020074,
+          "estimated_entropy_bits": 176326304.0,
+          "estimated_bpp": 0.4744974898171829,
+          "actual_to_estimated_bpp_ratio": 1.000182343752864,
+          "actual_minus_estimated_bits": 32152.0,
+          "kbps": 2204.4807,
+          "fps": 10.0,
+          "width": 1242,
+          "height": 374,
+          "coded_frames": 800,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 616384,
+              "estimated_entropy_bits": 616192.0,
+              "pixels": 464508,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 1249912,
+              "estimated_entropy_bits": 1249632.0,
+              "pixels": 3251556,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 6469696,
+              "estimated_entropy_bits": 6468736.0,
+              "pixels": 11148192,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 8362912,
+              "estimated_entropy_bits": 8361632.0,
+              "pixels": 14864256,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 159659552,
+              "estimated_entropy_bits": 159630112.0,
+              "pixels": 341877888,
+              "coded_frames": 736
+            }
+          },
+          "map50": 0.652544824809175,
+          "map5095": 0.37352324478686005,
+          "evaluated_images": 800,
+          "evaluated_classes": 2,
+          "map_by_iou": {
+            "0.50": 0.652544824809175,
+            "0.55": 0.6002235086103764,
+            "0.60": 0.5541104506439068,
+            "0.65": 0.5069555886461302,
+            "0.70": 0.43142941439843585,
+            "0.75": 0.3673588484247511,
+            "0.80": 0.2919674257490156,
+            "0.85": 0.20563746707144492,
+            "0.90": 0.11335955229678649,
+            "0.95": 0.011645367218577918
+          }
+        },
+        {
+          "name": "KITTI_0008",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_63/KITTI_0008.vcm",
+          "actual_bits": 57054288,
+          "actual_bpp": 0.31494193028719886,
+          "estimated_entropy_bits": 57038536.0,
+          "estimated_bpp": 0.3148549786230946,
+          "actual_to_estimated_bpp_ratio": 1.0002761641708335,
+          "actual_minus_estimated_bits": 15752.0,
+          "kbps": 1462.9304615384615,
+          "fps": 10.0,
+          "width": 1242,
+          "height": 374,
+          "coded_frames": 390,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 357848,
+              "estimated_entropy_bits": 357656.0,
+              "pixels": 464508,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 1159152,
+              "estimated_entropy_bits": 1158872.0,
+              "pixels": 3251556,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 3162856,
+              "estimated_entropy_bits": 3161896.0,
+              "pixels": 11148192,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 4691504,
+              "estimated_entropy_bits": 4690224.0,
+              "pixels": 14864256,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 47682928,
+              "estimated_entropy_bits": 47669888.0,
+              "pixels": 151429608,
+              "coded_frames": 326
+            }
+          },
+          "map50": 0.8214568362691885,
+          "map5095": 0.45692340328368236,
+          "evaluated_images": 390,
+          "evaluated_classes": 1,
+          "map_by_iou": {
+            "0.50": 0.8214568362691885,
+            "0.55": 0.789372023705884,
+            "0.60": 0.7581358593726477,
+            "0.65": 0.7005926960407567,
+            "0.70": 0.5997218885364224,
+            "0.75": 0.44781917606052857,
+            "0.80": 0.27620081933444035,
+            "0.85": 0.1308341555844619,
+            "0.90": 0.044200487923492515,
+            "0.95": 0.0009000900090009002
+          }
+        },
+        {
+          "name": "KITTI_0010",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_63/KITTI_0010.vcm",
+          "actual_bits": 56347128,
+          "actual_bpp": 0.41260193141815354,
+          "estimated_entropy_bits": 56335216.0,
+          "estimated_bpp": 0.4125147057798379,
+          "actual_to_estimated_bpp_ratio": 1.000211448554666,
+          "actual_minus_estimated_bits": 11912.0,
+          "kbps": 1916.5689795918368,
+          "fps": 10.0,
+          "width": 1242,
+          "height": 374,
+          "coded_frames": 294,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 368560,
+              "estimated_entropy_bits": 368368.0,
+              "pixels": 464508,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 1154800,
+              "estimated_entropy_bits": 1154520.0,
+              "pixels": 3251556,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 4909000,
+              "estimated_entropy_bits": 4908040.0,
+              "pixels": 11148192,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 7170592,
+              "estimated_entropy_bits": 7169312.0,
+              "pixels": 14864256,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 42744176,
+              "estimated_entropy_bits": 42734976.0,
+              "pixels": 106836840,
+              "coded_frames": 230
+            }
+          },
+          "map50": 0.5575169020314593,
+          "map5095": 0.3011567913056452,
+          "evaluated_images": 294,
+          "evaluated_classes": 2,
+          "map_by_iou": {
+            "0.50": 0.5575169020314593,
+            "0.55": 0.5418272267159744,
+            "0.60": 0.45596093819937655,
+            "0.65": 0.4132882303102846,
+            "0.70": 0.3698949113627101,
+            "0.75": 0.3227598921034351,
+            "0.80": 0.2513888083684366,
+            "0.85": 0.09187999106594809,
+            "0.90": 0.006953944368445052,
+            "0.95": 9.706853038245001e-05
+          }
+        },
+        {
+          "name": "KITTI_0013",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_63/KITTI_0013.vcm",
+          "actual_bits": 49991656,
+          "actual_bpp": 0.31653767503022806,
+          "estimated_entropy_bits": 49977904.0,
+          "estimated_bpp": 0.31645059997700287,
+          "actual_to_estimated_bpp_ratio": 1.000275161599414,
+          "actual_minus_estimated_bits": 13752.0,
+          "kbps": 1470.3428235294118,
+          "fps": 10.0,
+          "width": 1242,
+          "height": 374,
+          "coded_frames": 340,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 429384,
+              "estimated_entropy_bits": 429192.0,
+              "pixels": 464508,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 1363168,
+              "estimated_entropy_bits": 1362888.0,
+              "pixels": 3251556,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 3589136,
+              "estimated_entropy_bits": 3588176.0,
+              "pixels": 11148192,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 4727960,
+              "estimated_entropy_bits": 4726680.0,
+              "pixels": 14864256,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 39882008,
+              "estimated_entropy_bits": 39870968.0,
+              "pixels": 128204208,
+              "coded_frames": 276
+            }
+          },
+          "map50": 0.6913713300256509,
+          "map5095": 0.25438345584129884,
+          "evaluated_images": 340,
+          "evaluated_classes": 2,
+          "map_by_iou": {
+            "0.50": 0.6913713300256509,
+            "0.55": 0.6064090087473794,
+            "0.60": 0.4259326401205227,
+            "0.65": 0.2822035245643506,
+            "0.70": 0.20657035890567066,
+            "0.75": 0.12693810109424605,
+            "0.80": 0.07995748823333967,
+            "0.85": 0.06366293956981905,
+            "0.90": 0.06064356435643564,
+            "0.95": 0.00014560279557367502
+          }
+        },
+        {
+          "name": "KITTI_0014",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_63/KITTI_0014.vcm",
+          "actual_bits": 18375544,
+          "actual_bpp": 0.38278172734332555,
+          "estimated_entropy_bits": 18371152.0,
+          "estimated_bpp": 0.3826902374072185,
+          "actual_to_estimated_bpp_ratio": 1.0002390704730983,
+          "actual_minus_estimated_bits": 4392.0,
+          "kbps": 1733.541886792453,
+          "fps": 10.0,
+          "width": 1224,
+          "height": 370,
+          "coded_frames": 106,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 474568,
+              "estimated_entropy_bits": 474376.0,
+              "pixels": 452880,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 879976,
+              "estimated_entropy_bits": 879696.0,
+              "pixels": 3170160,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 3366816,
+              "estimated_entropy_bits": 3365856.0,
+              "pixels": 10869120,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 6681352,
+              "estimated_entropy_bits": 6680072.0,
+              "pixels": 14492160,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 6972832,
+              "estimated_entropy_bits": 6971152.0,
+              "pixels": 19020960,
+              "coded_frames": 42
+            }
+          },
+          "map50": 0.3230203909341914,
+          "map5095": 0.15503083753766306,
+          "evaluated_images": 106,
+          "evaluated_classes": 2,
+          "map_by_iou": {
+            "0.50": 0.3230203909341914,
+            "0.55": 0.29073247072818903,
+            "0.60": 0.26587808867449925,
+            "0.65": 0.2184737131724593,
+            "0.70": 0.16361852911572705,
+            "0.75": 0.11291209626749461,
+            "0.80": 0.08288189627606447,
+            "0.85": 0.05274907417026265,
+            "0.90": 0.030141125938732995,
+            "0.95": 0.009900990099009901
+          }
+        },
+        {
+          "name": "KITTI_0016",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_63/KITTI_0016.vcm",
+          "actual_bits": 15589464,
+          "actual_bpp": 0.16470309318606532,
+          "estimated_entropy_bits": 15580952.0,
+          "estimated_bpp": 0.16461316368437112,
+          "actual_to_estimated_bpp_ratio": 1.0005463080818169,
+          "actual_minus_estimated_bits": 8512.0,
+          "kbps": 745.9073684210526,
+          "fps": 10.0,
+          "width": 1224,
+          "height": 370,
+          "coded_frames": 209,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 410848,
+              "estimated_entropy_bits": 410656.0,
+              "pixels": 452880,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 616376,
+              "estimated_entropy_bits": 616096.0,
+              "pixels": 3170160,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 1415904,
+              "estimated_entropy_bits": 1414944.0,
+              "pixels": 10869120,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 2043440,
+              "estimated_entropy_bits": 2042160.0,
+              "pixels": 14492160,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 11102896,
+              "estimated_entropy_bits": 11097096.0,
+              "pixels": 65667600,
+              "coded_frames": 145
+            }
+          },
+          "map50": 0.7015740278809979,
+          "map5095": 0.30910728749901517,
+          "evaluated_images": 209,
+          "evaluated_classes": 2,
+          "map_by_iou": {
+            "0.50": 0.7015740278809979,
+            "0.55": 0.6706507783626288,
+            "0.60": 0.6264313025952801,
+            "0.65": 0.5335843775255792,
+            "0.70": 0.39160269356803684,
+            "0.75": 0.14843843661794073,
+            "0.80": 0.018757757869697588,
+            "0.85": 3.350056999110125e-05,
+            "0.90": 0.0,
+            "0.95": 0.0
+          }
+        },
+        {
+          "name": "KITTI_0018",
+          "bitstream_file": "/kaggle/working/bitstreams/dcvcrt/dcvcrt/qp_63/KITTI_0018.vcm",
+          "actual_bits": 63563824,
+          "actual_bpp": 0.4049655421559695,
+          "estimated_entropy_bits": 63550112.0,
+          "estimated_bpp": 0.40487818291348526,
+          "actual_to_estimated_bpp_ratio": 1.0002157667322442,
+          "actual_minus_estimated_bits": 13712.0,
+          "kbps": 1875.0390560471976,
+          "fps": 10.0,
+          "width": 1238,
+          "height": 374,
+          "coded_frames": 339,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 568448,
+              "estimated_entropy_bits": 568256.0,
+              "pixels": 463012,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 1762328,
+              "estimated_entropy_bits": 1762048.0,
+              "pixels": 3241084,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 4862400,
+              "estimated_entropy_bits": 4861440.0,
+              "pixels": 11112288,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 6975880,
+              "estimated_entropy_bits": 6974600.0,
+              "pixels": 14816384,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 49394768,
+              "estimated_entropy_bits": 49383768.0,
+              "pixels": 127328300,
+              "coded_frames": 275
+            }
+          },
+          "map50": 0.8890721430110178,
+          "map5095": 0.5772812127816955,
+          "evaluated_images": 339,
+          "evaluated_classes": 1,
+          "map_by_iou": {
+            "0.50": 0.8890721430110178,
+            "0.55": 0.8781816856800603,
+            "0.60": 0.8568779943446221,
+            "0.65": 0.8233795418501045,
+            "0.70": 0.7559777593476744,
+            "0.75": 0.6458289715263585,
+            "0.80": 0.4747311075537384,
+            "0.85": 0.3132631777063813,
+            "0.90": 0.13431130238390798,
+            "0.95": 0.001188444413090254
+          }
+        }
+      ]
+    }
+  ]
+}

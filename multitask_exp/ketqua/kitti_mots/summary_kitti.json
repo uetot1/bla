@@ -1,0 +1,56 @@
+{
+  "commit": "87b0cb4e58a004f3bcecd708d8aed3c889c93ca6",
+  "ground_truth": "KITTI-MOTS human-annotated instance masks (car, pedestrian), validation split; predictions mostly inside annotated ignore regions are discarded",
+  "evaluation_id": "sha256:8e2cce286f22ee21de9822d2c6f46e50eb29d714ab8b7185c049e3e0bd29acbe",
+  "dataset_stats": {
+    "frames": 2981,
+    "instances": {
+      "car": 8029,
+      "person": 3347
+    },
+    "frames_without_label_png": 0,
+    "cropped_from": {
+      "0002": "1242x375 -> 1242x374",
+      "0006": "1242x375 -> 1242x374",
+      "0007": "1242x375 -> 1242x374",
+      "0008": "1242x375 -> 1242x374",
+      "0010": "1242x375 -> 1242x374",
+      "0013": "1242x375 -> 1242x374"
+    }
+  },
+  "bd_rate_vs_hevc": {
+    "dcvcrt": {
+      "map50": -70.18966805045862,
+      "map5095": -64.98679663812518
+    },
+    "paper": {
+      "map50": -69.87597270807983,
+      "map5095": -67.46974732672784
+    },
+    "R4f": {
+      "map50": -70.79643591093149,
+      "map5095": -67.6047571038533
+    },
+    "R3f": {
+      "map50": -69.89482426511108,
+      "map5095": -67.58456103722037
+    },
+    "R1f": {
+      "map50": -75.22221631119614,
+      "map5095": -72.00024300029966
+    }
+  },
+  "minutes": {
+    "hevc": [],
+    "neural": [
+      41.62491191228231,
+      41.75628964503606,
+      41.506256969769794,
+      41.59816627105077,
+      40.83998123804728
+    ]
+  },
+  "failures": [],
+  "not_run": [],
+  "session_hours": 2.734885941412714
+}

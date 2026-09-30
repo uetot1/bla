@@ -1,0 +1,32 @@
+{
+  "run_name": "R4f_s1111",
+  "completed_epochs": 3,
+  "target_epochs": 3,
+  "finished": true,
+  "stopped_by_deadline": false,
+  "best_epoch_by_val_loss": 1,
+  "best_val_total_loss": 0.20288725804537536,
+  "longest_epoch_minutes": 25.0,
+  "multitask": {
+    "alpha_det": 0.5,
+    "alpha_seg": 0.5,
+    "seg_scale": 0.0534884498437598,
+    "det_layer": 4,
+    "det_mode": "frozen",
+    "rate_mode": "exact",
+    "det_clone_batchnorm": null,
+    "seg_layer": 17,
+    "seg_branch": "frozen_pretrained",
+    "group_size": 6,
+    "hflip": true,
+    "lambda_range": [
+      1.0,
+      64.0
+    ],
+    "lambda_mapping": "geometric_qp_1_64",
+    "det_weights_sha256": "8b3b748c1e592ddd8868022e8732fde20025197328490623cc16c6f24d0782ee",
+    "seg_weights_sha256": "78558867515e9d9654c52ed87c40c22d90a983bea63450c611cbd8c2b13e3aa2",
+    "init_checkpoint_sha256": "b6be43f3e145c054392a9c7d64b8fff55832bc58059a80ab754873a609663c83",
+    "det_clone_init": null
+  }
+}

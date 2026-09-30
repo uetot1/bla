@@ -1,0 +1,32 @@
+{
+  "run_name": "R3f_s1111",
+  "completed_epochs": 3,
+  "target_epochs": 3,
+  "finished": true,
+  "stopped_by_deadline": false,
+  "best_epoch_by_val_loss": 1,
+  "best_val_total_loss": 0.21027141720056533,
+  "longest_epoch_minutes": 18.139769878652363,
+  "multitask": {
+    "alpha_det": 1.0,
+    "alpha_seg": 0.0,
+    "seg_scale": 1.0,
+    "det_layer": 4,
+    "det_mode": "frozen",
+    "rate_mode": "exact",
+    "det_clone_batchnorm": null,
+    "seg_layer": null,
+    "seg_branch": null,
+    "group_size": 6,
+    "hflip": true,
+    "lambda_range": [
+      1.0,
+      64.0
+    ],
+    "lambda_mapping": "geometric_qp_1_64",
+    "det_weights_sha256": "8b3b748c1e592ddd8868022e8732fde20025197328490623cc16c6f24d0782ee",
+    "seg_weights_sha256": null,
+    "init_checkpoint_sha256": "b6be43f3e145c054392a9c7d64b8fff55832bc58059a80ab754873a609663c83",
+    "det_clone_init": null
+  }
+}

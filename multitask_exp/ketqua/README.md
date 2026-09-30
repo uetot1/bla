@@ -48,3 +48,14 @@ Cần tải thêm từ output của phiên đó:
 - `thesis_figures/rd_map50.png`, `thesis_figures/rd_map5095.png` (Hình 4.1)
 - nếu được: các tệp `.json` trong `eval_box/classd`, `eval_box/classc`, `eval_mask/class_d`,
   `eval_mask/class_c` (AVC, DCVC-RT gốc, các mask fp16 của bài / R4f / R3f / R1f, cặp seed 4321)
+
+## `rq2_seeds/` — RQ2 với 5 seed (đủ)
+
+- Nguồn: `train_kaggle/kaggle_multitask_seeds.ipynb`, commit `33557b8`, một phiên 6,6 giờ, không lỗi;
+  6 run mới đều đủ 3 epoch (`seed_runs/*/status.json`).
+- Tiêu chí đặt trước (trong notebook): seed mới 1111, 2222, 3333; gộp 5 cặp R4f − R3f trên dữ liệu gốc;
+  RQ2 xác lập chỉ khi cận trên KTC 95 % < 0.
+- `eval_mask_class_d/`: toàn bộ kết quả mask SFU Class D (fp16 và fp32 cũ) có cùng `evaluation_id`
+  `sha256:415914dc…`, gồm cả tệp của hai cặp cũ (seed 1234, 4321) và mốc `paper_fp16`, `HEVC_x265`.
+- Kết quả (tính lại trên máy, trùng `summary_seeds.json`): hiệu cặp −12,55 / −1,20 / −11,28 / +11,78 / +2,64;
+  trung bình −2,12, độ lệch chuẩn 10,12, KTC 95 % [−14,68; +10,44] → **RQ2 không xác lập**.

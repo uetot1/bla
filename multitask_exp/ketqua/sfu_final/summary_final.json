@@ -1,0 +1,361 @@
+{
+  "commit": "503ddf8bbcff7697f15e03c54b034e2af4824540",
+  "bd_rate_vs_hevc": {
+    "Class D \u00b7 detection": {
+      "avc": 43.479133935618506,
+      "hevc": 0.0,
+      "dcvcrt": -70.63467378708216,
+      "paper": -73.23848641197799,
+      "multitask": -72.66752078070644
+    },
+    "Class C \u00b7 detection": {
+      "avc": 71.70286238847203,
+      "hevc": 0.0,
+      "dcvcrt": -59.793354807419874,
+      "paper": -63.27143003647423,
+      "multitask": -63.63153357387764
+    },
+    "Class D \u00b7 segmentation": {
+      "avc": 61.560376841645414,
+      "hevc": 0.0,
+      "dcvcrt": -64.29582322648974,
+      "paper": -70.19990206726688,
+      "multitask": -71.68670963968363
+    },
+    "Class C \u00b7 segmentation": {
+      "avc": 124.97780659146751,
+      "hevc": 0.0,
+      "dcvcrt": -66.04758640874101,
+      "paper": -65.91954668738592,
+      "multitask": -66.31964905340433
+    }
+  },
+  "rq2_pairs": {
+    "seed 1234, du lieu goc": {
+      "R4f": -6.858262716611685,
+      "R3f": 5.689044586494618,
+      "difference": -12.547307303106304
+    },
+    "seed 1234, da loc": {
+      "R4f": -3.15684162403691,
+      "R3f": 6.153575460022309,
+      "difference": -9.31041708405922
+    },
+    "seed 4321, du lieu goc": {
+      "R4f": 14.393804526466724,
+      "R3f": 15.593152802291698,
+      "difference": -1.199348275824974
+    }
+  },
+  "failures": [],
+  "dcvcrt_box_classes": [
+    "class_c",
+    "class_d"
+  ],
+  "all_runs_vs_hevc": {
+    "class_d box": {
+      "AVC_x264_results": {
+        "map50": 43.479133935618506,
+        "map5095": 43.03354307916474,
+        "precision": null
+      },
+      "R1_results": {
+        "map50": -50.61480894020911,
+        "map5095": -51.7865690146603,
+        "precision": "fp16"
+      },
+      "R1f_results": {
+        "map50": -68.87320254431624,
+        "map5095": -71.35096750564198,
+        "precision": "fp16"
+      },
+      "R3_results": {
+        "map50": 2.7779371255187257,
+        "map5095": -8.160111585169716,
+        "precision": "fp16"
+      },
+      "R3f_results": {
+        "map50": -73.57083003422838,
+        "map5095": -74.28558367350327,
+        "precision": "fp16"
+      },
+      "R4_results": {
+        "map50": -15.91973150222461,
+        "map5095": -22.764988123157003,
+        "precision": "fp16"
+      },
+      "R4f_results": {
+        "map50": -72.66752078070644,
+        "map5095": -73.42196651933331,
+        "precision": "fp16"
+      },
+      "dcvcrt_results": {
+        "map50": -70.63467378708216,
+        "map5095": -70.02098975098818,
+        "precision": "fp16"
+      },
+      "paper_results": {
+        "map50": -73.23848641197799,
+        "map5095": -74.37725230925582,
+        "precision": "fp16"
+      }
+    },
+    "class_d mask": {
+      "AVC_x264_mask_results": {
+        "map50": 61.560376841645414,
+        "map5095": 76.54098561556705,
+        "precision": null
+      },
+      "A_coldadam_s000050_mask_results": {
+        "map50": -67.69056536446713,
+        "map5095": -67.75942865660029,
+        "precision": null
+      },
+      "A_coldadam_s000200_mask_results": {
+        "map50": -64.860445148826,
+        "map5095": -65.18840050444543,
+        "precision": null
+      },
+      "A_coldadam_s000800_mask_results": {
+        "map50": -57.80100394272696,
+        "map5095": -58.36154505224602,
+        "precision": null
+      },
+      "A_coldadam_s001753_mask_results": {
+        "map50": -52.445840645184916,
+        "map5095": -53.19962791967363,
+        "precision": null
+      },
+      "B_faithful_s000050_mask_results": {
+        "map50": -64.0995744189976,
+        "map5095": -65.28453103386424,
+        "precision": null
+      },
+      "B_faithful_s000200_mask_results": {
+        "map50": -71.53261752056162,
+        "map5095": -71.35196052714758,
+        "precision": null
+      },
+      "B_faithful_s000800_mask_results": {
+        "map50": -69.61870581636234,
+        "map5095": -69.42264161256695,
+        "precision": null
+      },
+      "B_faithful_s001753_mask_results": {
+        "map50": -69.51216526699122,
+        "map5095": -69.66833678872281,
+        "precision": null
+      },
+      "R1f_e01_mask_results": {
+        "map50": -72.2312236776381,
+        "map5095": -72.0984497827881,
+        "precision": null
+      },
+      "R1f_e02_mask_results": {
+        "map50": -69.93428612263432,
+        "map5095": -69.67986613292383,
+        "precision": null
+      },
+      "R1f_e03_fp16_mask_results": {
+        "map50": -70.92095537494036,
+        "map5095": -70.90019336720795,
+        "precision": "fp16"
+      },
+      "R1f_e03_mask_results": {
+        "map50": -69.66875861075106,
+        "map5095": -70.354232936345,
+        "precision": null
+      },
+      "R1f_s2_e03_fp16_mask_results": {
+        "map50": -67.93062561369815,
+        "map5095": -67.83184846476595,
+        "precision": "fp16"
+      },
+      "R3f_e01_mask_results": {
+        "map50": -70.09107182576251,
+        "map5095": -69.98678869659415,
+        "precision": null
+      },
+      "R3f_e02_mask_results": {
+        "map50": -68.2223211444582,
+        "map5095": -69.19894753610268,
+        "precision": null
+      },
+      "R3f_e03_fp16_mask_results": {
+        "map50": -68.4103705195713,
+        "map5095": -69.7066545131913,
+        "precision": "fp16"
+      },
+      "R3f_e03_mask_results": {
+        "map50": -69.000774715799,
+        "map5095": -69.72913956936628,
+        "precision": null
+      },
+      "R3f_flt_e03_fp16_mask_results": {
+        "map50": -68.16192429123508,
+        "map5095": -69.17160566620612,
+        "precision": "fp16"
+      },
+      "R3f_s2_e03_fp16_mask_results": {
+        "map50": -65.43271561342956,
+        "map5095": -66.23436914405468,
+        "precision": "fp16"
+      },
+      "R4f_e01_mask_results": {
+        "map50": -69.51216526699122,
+        "map5095": -69.66833678872281,
+        "precision": null
+      },
+      "R4f_e02_mask_results": {
+        "map50": -70.97671645421124,
+        "map5095": -70.83177430510882,
+        "precision": null
+      },
+      "R4f_e03_fp16_mask_results": {
+        "map50": -71.68670963968363,
+        "map5095": -71.55146640243701,
+        "precision": "fp16"
+      },
+      "R4f_e03_mask_results": {
+        "map50": -71.81480721505372,
+        "map5095": -71.01421919546269,
+        "precision": null
+      },
+      "R4f_flt_e03_fp16_mask_results": {
+        "map50": -70.52285195376908,
+        "map5095": -69.89052679121374,
+        "precision": "fp16"
+      },
+      "R4f_s2_e03_fp16_mask_results": {
+        "map50": -64.77854456325724,
+        "map5095": -65.40457001230864,
+        "precision": "fp16"
+      },
+      "R4x_e01_mask_results": {
+        "map50": -71.00732293840409,
+        "map5095": -72.33003503839403,
+        "precision": null
+      },
+      "R4x_e08_mask_results": {
+        "map50": -68.98515531766756,
+        "map5095": -68.32799984814126,
+        "precision": null
+      },
+      "dcvcrt_fp16_mask_results": {
+        "map50": -64.29582322648974,
+        "map5095": -64.4292910546009,
+        "precision": "fp16"
+      },
+      "paper_fp16_mask_results": {
+        "map50": -70.19990206726688,
+        "map5095": -70.29611926318383,
+        "precision": "fp16"
+      },
+      "paper_mask_results": {
+        "map50": -68.50960928572754,
+        "map5095": -69.3079561056174,
+        "precision": null
+      }
+    },
+    "class_c box": {
+      "AVC_x264_results": {
+        "map50": 71.70286238847203,
+        "map5095": 90.9383186610356,
+        "precision": null
+      },
+      "R1_results": {
+        "map50": -28.495024027894168,
+        "map5095": -22.76572510114645,
+        "precision": "fp16"
+      },
+      "R1f_results": {
+        "map50": -61.23697864396542,
+        "map5095": -53.12653927675808,
+        "precision": "fp16"
+      },
+      "R3_results": {
+        "map50": 7.632878338856819,
+        "map5095": 7.627980161498638,
+        "precision": "fp16"
+      },
+      "R3f_results": {
+        "map50": -61.03120984911505,
+        "map5095": -56.63183716480504,
+        "precision": "fp16"
+      },
+      "R4_results": {
+        "map50": -2.7783506574334926,
+        "map5095": 1.954672068025043,
+        "precision": "fp16"
+      },
+      "R4f_results": {
+        "map50": -63.63153357387764,
+        "map5095": -61.16128276262165,
+        "precision": "fp16"
+      },
+      "dcvcrt_results": {
+        "map50": -59.793354807419874,
+        "map5095": -63.46939789091244,
+        "precision": "fp16"
+      },
+      "paper_results": {
+        "map50": -63.27143003647423,
+        "map5095": -59.27327744863793,
+        "precision": "fp16"
+      }
+    },
+    "class_c mask": {
+      "AVC_x264_mask_results": {
+        "map50": 124.97780659146751,
+        "map5095": 155.64756153381188,
+        "precision": null
+      },
+      "R1f_e03_fp16_mask_results": {
+        "map50": -69.46513669176855,
+        "map5095": -69.39272844208061,
+        "precision": "fp16"
+      },
+      "R1f_e03_mask_results": {
+        "map50": -66.38284810389676,
+        "map5095": -66.49305260627246,
+        "precision": null
+      },
+      "R3f_e03_fp16_mask_results": {
+        "map50": -67.48365438371513,
+        "map5095": -67.66422871196171,
+        "precision": "fp16"
+      },
+      "R3f_e03_mask_results": {
+        "map50": -64.43832515407836,
+        "map5095": -64.31006129834378,
+        "precision": null
+      },
+      "R4f_e03_fp16_mask_results": {
+        "map50": -66.31964905340433,
+        "map5095": -66.31594010044661,
+        "precision": "fp16"
+      },
+      "R4f_e03_mask_results": {
+        "map50": -70.82171413006,
+        "map5095": -70.50892922805482,
+        "precision": null
+      },
+      "dcvcrt_fp16_mask_results": {
+        "map50": -66.04758640874101,
+        "map5095": -65.10965152469895,
+        "precision": "fp16"
+      },
+      "paper_fp16_mask_results": {
+        "map50": -65.91954668738592,
+        "map5095": -66.19794175141547,
+        "precision": "fp16"
+      },
+      "paper_mask_results": {
+        "map50": -66.27514383706885,
+        "map5095": -66.34799070841795,
+        "precision": null
+      }
+    }
+  },
+  "session_hours": 3.462363068792555
+}

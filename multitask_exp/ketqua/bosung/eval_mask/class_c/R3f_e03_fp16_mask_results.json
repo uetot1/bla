@@ -1,0 +1,1763 @@
+{
+  "schema_version": 7,
+  "method": "R3f_e03_fp16",
+  "codec": "DCVC-RT DMCI + DMC all-frame VCM",
+  "codec_config": {
+    "image_checkpoint": "/kaggle/input/datasets/pduy05/pre-train/cvpr2025_image.pth.tar",
+    "checkpoints": [
+      "/kaggle/input/notebooks/phuongthuy0909/fairhful/faithful_runs/R3f/epoch_0003.pth",
+      "/kaggle/input/notebooks/phuongthuy0909/fairhful/faithful_runs/R3f/epoch_0003.pth",
+      "/kaggle/input/notebooks/phuongthuy0909/fairhful/faithful_runs/R3f/epoch_0003.pth",
+      "/kaggle/input/notebooks/phuongthuy0909/fairhful/faithful_runs/R3f/epoch_0003.pth",
+      "/kaggle/input/notebooks/phuongthuy0909/fairhful/faithful_runs/R3f/epoch_0003.pth",
+      "/kaggle/input/notebooks/phuongthuy0909/fairhful/faithful_runs/R3f/epoch_0003.pth"
+    ],
+    "base_qps": [
+      0,
+      12,
+      24,
+      36,
+      48,
+      63
+    ],
+    "qp_offsets": [
+      0,
+      8,
+      0,
+      4,
+      0,
+      4,
+      0,
+      4
+    ],
+    "reset_interval": 32,
+    "codec_precision": "fp16",
+    "color_pipeline": "RGB -> full-range BT.709 YCbCr444 -> codec -> RGB"
+  },
+  "protocol": "all frames and complete bitstream included",
+  "comparison_scope": "end-to-end VCM system, segmentation axis",
+  "rate_source": "actual sequence-container bytes including headers",
+  "rate_points": 6,
+  "task": "instance_segmentation",
+  "task_model": "yolov5s-seg",
+  "ground_truth": "instance masks predicted by the frozen segmentation model on the uncompressed source frames (proxy reference, not human labels)",
+  "evaluation_id": "sha256:6bc62f4b4c857f7ce570ce73b381b008896bbffe3bd991b275925f32f0ee6808",
+  "dataset": {
+    "sequences": 4,
+    "source_frames": 1900
+  },
+  "detector_config": {
+    "task_model": "yolov5s-seg",
+    "weights_id": "sha256:8706c269428bed07928b9607b36d93132aacba9add497755b7f77e0c7666829d",
+    "input_size": 640,
+    "confidence_threshold": 0.25,
+    "nms_iou_threshold": 0.45,
+    "max_detections": 300,
+    "class_count": 80,
+    "mask_space": "detector letterbox input, identical transform for both sides"
+  },
+  "machine_frontend": {
+    "type": "frozen_pretrained_yolov5_seg",
+    "task_backend_weights_id": "sha256:8706c269428bed07928b9607b36d93132aacba9add497755b7f77e0c7666829d"
+  },
+  "points": [
+    {
+      "base_qp": 0,
+      "video_checkpoint": "/kaggle/input/notebooks/phuongthuy0909/fairhful/faithful_runs/R3f/epoch_0003.pth",
+      "hierarchical_qp": true,
+      "actual_bits": 22202416,
+      "actual_bpp": 0.02926052209851552,
+      "estimated_entropy_bits": 22125808.0,
+      "estimated_bpp": 0.02915956056005398,
+      "actual_to_estimated_bpp_ratio": 1.003462382029167,
+      "actual_minus_estimated_bits": 76608.0,
+      "kbps": 555.0604000000001,
+      "coded_frames": 1900,
+      "map50": 0.3061000341936558,
+      "map5095": 0.2503644485930584,
+      "evaluated_images": 1900,
+      "evaluated_classes": 36,
+      "map_by_iou": {
+        "0.50": 0.3061000341936558,
+        "0.55": 0.3060259494177498,
+        "0.60": 0.3007486380017098,
+        "0.65": 0.2989897706624542,
+        "0.70": 0.2920348544349222,
+        "0.75": 0.2795594891499222,
+        "0.80": 0.2597595973270369,
+        "0.85": 0.22624838212755818,
+        "0.90": 0.15777779404423942,
+        "0.95": 0.07639997657133539
+      },
+      "sequences": [
+        {
+          "name": "BasketballDrill",
+          "bitstream_file": "/kaggle/working/mask_bitstreams/class_c/R3f_e03_fp16/R3f_e03_fp16/qp_00/BasketballDrill.vcm",
+          "actual_bits": 5564128,
+          "actual_bpp": 0.027865224358974358,
+          "estimated_entropy_bits": 5543976.0,
+          "estimated_bpp": 0.027764302884615386,
+          "actual_to_estimated_bpp_ratio": 1.0036349363705759,
+          "actual_minus_estimated_bits": 20152.0,
+          "kbps": 556.4128,
+          "fps": 50.0,
+          "width": 832,
+          "height": 480,
+          "coded_frames": 500,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 14584,
+              "estimated_entropy_bits": 14392.0,
+              "pixels": 399360,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 108432,
+              "estimated_entropy_bits": 108152.0,
+              "pixels": 2795520,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 237576,
+              "estimated_entropy_bits": 236616.0,
+              "pixels": 9584640,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 352520,
+              "estimated_entropy_bits": 351240.0,
+              "pixels": 12779520,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 4851016,
+              "estimated_entropy_bits": 4833576.0,
+              "pixels": 174120960,
+              "coded_frames": 436
+            }
+          },
+          "map50": 0.17425682008605023,
+          "map5095": 0.1271465820847047,
+          "evaluated_images": 500,
+          "evaluated_classes": 19,
+          "map_by_iou": {
+            "0.50": 0.17425682008605023,
+            "0.55": 0.17421487548156678,
+            "0.60": 0.1696309363315974,
+            "0.65": 0.16888823434849815,
+            "0.70": 0.1511352307807118,
+            "0.75": 0.1442540280168308,
+            "0.80": 0.13429935228818204,
+            "0.85": 0.09674461144174196,
+            "0.90": 0.04988483519375927,
+            "0.95": 0.008156896878108747
+          }
+        },
+        {
+          "name": "BQMall",
+          "bitstream_file": "/kaggle/working/mask_bitstreams/class_c/R3f_e03_fp16/R3f_e03_fp16/qp_00/BQMall.vcm",
+          "actual_bits": 6067136,
+          "actual_bpp": 0.025320245726495726,
+          "estimated_entropy_bits": 6042984.0,
+          "estimated_bpp": 0.025219451121794873,
+          "actual_to_estimated_bpp_ratio": 1.0039967009676014,
+          "actual_minus_estimated_bits": 24152.0,
+          "kbps": 606.7136,
+          "fps": 60.0,
+          "width": 832,
+          "height": 480,
+          "coded_frames": 600,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 19624,
+              "estimated_entropy_bits": 19432.0,
+              "pixels": 399360,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 134144,
+              "estimated_entropy_bits": 133864.0,
+              "pixels": 2795520,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 215304,
+              "estimated_entropy_bits": 214344.0,
+              "pixels": 9584640,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 385416,
+              "estimated_entropy_bits": 384136.0,
+              "pixels": 12779520,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 5312648,
+              "estimated_entropy_bits": 5291208.0,
+              "pixels": 214056960,
+              "coded_frames": 536
+            }
+          },
+          "map50": 0.2925476753674368,
+          "map5095": 0.24669184727898402,
+          "evaluated_images": 600,
+          "evaluated_classes": 24,
+          "map_by_iou": {
+            "0.50": 0.2925476753674368,
+            "0.55": 0.29252329143919936,
+            "0.60": 0.289716886852827,
+            "0.65": 0.28916069222034807,
+            "0.70": 0.28531743330779497,
+            "0.75": 0.28188627727027915,
+            "0.80": 0.26638336970919996,
+            "0.85": 0.22755596504619113,
+            "0.90": 0.16917000301520801,
+            "0.95": 0.07265687856135598
+          }
+        },
+        {
+          "name": "PartyScene",
+          "bitstream_file": "/kaggle/working/mask_bitstreams/class_c/R3f_e03_fp16/R3f_e03_fp16/qp_00/PartyScene.vcm",
+          "actual_bits": 6175944,
+          "actual_bpp": 0.03092920673076923,
+          "estimated_entropy_bits": 6155792.0,
+          "estimated_bpp": 0.030828285256410258,
+          "actual_to_estimated_bpp_ratio": 1.003273664867169,
+          "actual_minus_estimated_bits": 20152.0,
+          "kbps": 617.5944,
+          "fps": 50.0,
+          "width": 832,
+          "height": 480,
+          "coded_frames": 500,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 26312,
+              "estimated_entropy_bits": 26120.0,
+              "pixels": 399360,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 190152,
+              "estimated_entropy_bits": 189872.0,
+              "pixels": 2795520,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 296648,
+              "estimated_entropy_bits": 295688.0,
+              "pixels": 9584640,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 403000,
+              "estimated_entropy_bits": 401720.0,
+              "pixels": 12779520,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 5259832,
+              "estimated_entropy_bits": 5242392.0,
+              "pixels": 174120960,
+              "coded_frames": 436
+            }
+          },
+          "map50": 0.3011594624556935,
+          "map5095": 0.258177236642253,
+          "evaluated_images": 500,
+          "evaluated_classes": 19,
+          "map_by_iou": {
+            "0.50": 0.3011594624556935,
+            "0.55": 0.3001471704619108,
+            "0.60": 0.29723660330259577,
+            "0.65": 0.2954087321492849,
+            "0.70": 0.29224265607827116,
+            "0.75": 0.2738068077511575,
+            "0.80": 0.260245438513241,
+            "0.85": 0.23751016306368097,
+            "0.90": 0.1983752658452825,
+            "0.95": 0.12564006680141182
+          }
+        },
+        {
+          "name": "RaceHorses",
+          "bitstream_file": "/kaggle/working/mask_bitstreams/class_c/R3f_e03_fp16/R3f_e03_fp16/qp_00/RaceHorses.vcm",
+          "actual_bits": 4395208,
+          "actual_bpp": 0.036685430021367524,
+          "estimated_entropy_bits": 4383056.0,
+          "estimated_bpp": 0.03658400106837607,
+          "actual_to_estimated_bpp_ratio": 1.002772494807276,
+          "actual_minus_estimated_bits": 12152.0,
+          "kbps": 439.5208,
+          "fps": 30.0,
+          "width": 832,
+          "height": 480,
+          "coded_frames": 300,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 17656,
+              "estimated_entropy_bits": 17464.0,
+              "pixels": 399360,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 131296,
+              "estimated_entropy_bits": 131016.0,
+              "pixels": 2795520,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 373040,
+              "estimated_entropy_bits": 372080.0,
+              "pixels": 9584640,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 472680,
+              "estimated_entropy_bits": 471400.0,
+              "pixels": 12779520,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 3400536,
+              "estimated_entropy_bits": 3391096.0,
+              "pixels": 94248960,
+              "coded_frames": 236
+            }
+          },
+          "map50": 0.5554599251029982,
+          "map5095": 0.4294563894788097,
+          "evaluated_images": 300,
+          "evaluated_classes": 4,
+          "map_by_iou": {
+            "0.50": 0.5554599251029982,
+            "0.55": 0.5517999444009896,
+            "0.60": 0.5458406003181235,
+            "0.65": 0.537584262285894,
+            "0.70": 0.5310276449741282,
+            "0.75": 0.5097760451255234,
+            "0.80": 0.47663191014862694,
+            "0.85": 0.386970466261167,
+            "0.90": 0.18023237353892843,
+            "0.95": 0.019240722631716917
+          }
+        }
+      ]
+    },
+    {
+      "base_qp": 12,
+      "video_checkpoint": "/kaggle/input/notebooks/phuongthuy0909/fairhful/faithful_runs/R3f/epoch_0003.pth",
+      "hierarchical_qp": true,
+      "actual_bits": 34632376,
+      "actual_bpp": 0.04564194289811066,
+      "estimated_entropy_bits": 34555768.0,
+      "estimated_bpp": 0.045540981359649124,
+      "actual_to_estimated_bpp_ratio": 1.0022169381389527,
+      "actual_minus_estimated_bits": 76608.0,
+      "kbps": 865.8094,
+      "coded_frames": 1900,
+      "map50": 0.43291457341218154,
+      "map5095": 0.37346066086173807,
+      "evaluated_images": 1900,
+      "evaluated_classes": 36,
+      "map_by_iou": {
+        "0.50": 0.43291457341218154,
+        "0.55": 0.429479408342287,
+        "0.60": 0.42531286103425575,
+        "0.65": 0.4242476800022556,
+        "0.70": 0.4195642339422513,
+        "0.75": 0.4102240047312531,
+        "0.80": 0.3930031418170578,
+        "0.85": 0.3609341567908058,
+        "0.90": 0.2846133779516619,
+        "0.95": 0.15431317059337116
+      },
+      "sequences": [
+        {
+          "name": "BasketballDrill",
+          "bitstream_file": "/kaggle/working/mask_bitstreams/class_c/R3f_e03_fp16/R3f_e03_fp16/qp_12/BasketballDrill.vcm",
+          "actual_bits": 8306720,
+          "actual_bpp": 0.04160016025641026,
+          "estimated_entropy_bits": 8286568.0,
+          "estimated_bpp": 0.04149923878205128,
+          "actual_to_estimated_bpp_ratio": 1.002431887362778,
+          "actual_minus_estimated_bits": 20152.0,
+          "kbps": 830.672,
+          "fps": 50.0,
+          "width": 832,
+          "height": 480,
+          "coded_frames": 500,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 24544,
+              "estimated_entropy_bits": 24352.0,
+              "pixels": 399360,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 164584,
+              "estimated_entropy_bits": 164304.0,
+              "pixels": 2795520,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 349056,
+              "estimated_entropy_bits": 348096.0,
+              "pixels": 9584640,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 535496,
+              "estimated_entropy_bits": 534216.0,
+              "pixels": 12779520,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 7233040,
+              "estimated_entropy_bits": 7215600.0,
+              "pixels": 174120960,
+              "coded_frames": 436
+            }
+          },
+          "map50": 0.3944690271731045,
+          "map5095": 0.2909064725667344,
+          "evaluated_images": 500,
+          "evaluated_classes": 19,
+          "map_by_iou": {
+            "0.50": 0.3944690271731045,
+            "0.55": 0.3939169741461286,
+            "0.60": 0.3389535238347443,
+            "0.65": 0.33891137995201503,
+            "0.70": 0.33505684086291104,
+            "0.75": 0.3294986733037375,
+            "0.80": 0.2846932562428486,
+            "0.85": 0.22938200926265054,
+            "0.90": 0.17539548933842922,
+            "0.95": 0.08878755155077478
+          }
+        },
+        {
+          "name": "BQMall",
+          "bitstream_file": "/kaggle/working/mask_bitstreams/class_c/R3f_e03_fp16/R3f_e03_fp16/qp_12/BQMall.vcm",
+          "actual_bits": 9369152,
+          "actual_bpp": 0.039100694444444445,
+          "estimated_entropy_bits": 9345000.0,
+          "estimated_bpp": 0.03899989983974359,
+          "actual_to_estimated_bpp_ratio": 1.0025844836811129,
+          "actual_minus_estimated_bits": 24152.0,
+          "kbps": 936.9152,
+          "fps": 60.0,
+          "width": 832,
+          "height": 480,
+          "coded_frames": 600,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 36296,
+              "estimated_entropy_bits": 36104.0,
+              "pixels": 399360,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 192376,
+              "estimated_entropy_bits": 192096.0,
+              "pixels": 2795520,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 327328,
+              "estimated_entropy_bits": 326368.0,
+              "pixels": 9584640,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 594664,
+              "estimated_entropy_bits": 593384.0,
+              "pixels": 12779520,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 8218488,
+              "estimated_entropy_bits": 8197048.0,
+              "pixels": 214056960,
+              "coded_frames": 536
+            }
+          },
+          "map50": 0.43393072894594464,
+          "map5095": 0.3763318311872431,
+          "evaluated_images": 600,
+          "evaluated_classes": 24,
+          "map_by_iou": {
+            "0.50": 0.43393072894594464,
+            "0.55": 0.428415809525676,
+            "0.60": 0.42486171380472837,
+            "0.65": 0.42402298991268417,
+            "0.70": 0.42037821596156033,
+            "0.75": 0.4133793286418849,
+            "0.80": 0.37745099787045455,
+            "0.85": 0.36237171484180647,
+            "0.90": 0.30836499189734995,
+            "0.95": 0.17014182047034154
+          }
+        },
+        {
+          "name": "PartyScene",
+          "bitstream_file": "/kaggle/working/mask_bitstreams/class_c/R3f_e03_fp16/R3f_e03_fp16/qp_12/PartyScene.vcm",
+          "actual_bits": 9287496,
+          "actual_bpp": 0.04651189903846154,
+          "estimated_entropy_bits": 9267344.0,
+          "estimated_bpp": 0.04641097756410256,
+          "actual_to_estimated_bpp_ratio": 1.0021745173158567,
+          "actual_minus_estimated_bits": 20152.0,
+          "kbps": 928.7496,
+          "fps": 50.0,
+          "width": 832,
+          "height": 480,
+          "coded_frames": 500,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 65904,
+              "estimated_entropy_bits": 65712.0,
+              "pixels": 399360,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 285560,
+              "estimated_entropy_bits": 285280.0,
+              "pixels": 2795520,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 479232,
+              "estimated_entropy_bits": 478272.0,
+              "pixels": 9584640,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 629488,
+              "estimated_entropy_bits": 628208.0,
+              "pixels": 12779520,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 7827312,
+              "estimated_entropy_bits": 7809872.0,
+              "pixels": 174120960,
+              "coded_frames": 436
+            }
+          },
+          "map50": 0.43159018717034775,
+          "map5095": 0.395041582065608,
+          "evaluated_images": 500,
+          "evaluated_classes": 19,
+          "map_by_iou": {
+            "0.50": 0.43159018717034775,
+            "0.55": 0.4308744613036481,
+            "0.60": 0.43018638436395634,
+            "0.65": 0.4283421525426176,
+            "0.70": 0.42561101451878325,
+            "0.75": 0.4211004658704683,
+            "0.80": 0.4114817519185952,
+            "0.85": 0.3893090264242245,
+            "0.90": 0.3253110153521126,
+            "0.95": 0.2566093611913261
+          }
+        },
+        {
+          "name": "RaceHorses",
+          "bitstream_file": "/kaggle/working/mask_bitstreams/class_c/R3f_e03_fp16/R3f_e03_fp16/qp_12/RaceHorses.vcm",
+          "actual_bits": 7669008,
+          "actual_bpp": 0.06401081730769231,
+          "estimated_entropy_bits": 7656856.0,
+          "estimated_bpp": 0.06390938835470085,
+          "actual_to_estimated_bpp_ratio": 1.0015870743814432,
+          "actual_minus_estimated_bits": 12152.0,
+          "kbps": 766.9008,
+          "fps": 30.0,
+          "width": 832,
+          "height": 480,
+          "coded_frames": 300,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 29536,
+              "estimated_entropy_bits": 29344.0,
+              "pixels": 399360,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 220496,
+              "estimated_entropy_bits": 220216.0,
+              "pixels": 2795520,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 645472,
+              "estimated_entropy_bits": 644512.0,
+              "pixels": 9584640,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 813920,
+              "estimated_entropy_bits": 812640.0,
+              "pixels": 12779520,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 5959584,
+              "estimated_entropy_bits": 5950144.0,
+              "pixels": 94248960,
+              "coded_frames": 236
+            }
+          },
+          "map50": 0.7821790053437063,
+          "map5095": 0.6767780205734328,
+          "evaluated_images": 300,
+          "evaluated_classes": 4,
+          "map_by_iou": {
+            "0.50": 0.7821790053437063,
+            "0.55": 0.7813883122420613,
+            "0.60": 0.7732891308638057,
+            "0.65": 0.7698779380739734,
+            "0.70": 0.7631865627482859,
+            "0.75": 0.7521902743606705,
+            "0.80": 0.7280286952250999,
+            "0.85": 0.6439844200935226,
+            "0.90": 0.5471925618901213,
+            "0.95": 0.22646330489308106
+          }
+        }
+      ]
+    },
+    {
+      "base_qp": 24,
+      "video_checkpoint": "/kaggle/input/notebooks/phuongthuy0909/fairhful/faithful_runs/R3f/epoch_0003.pth",
+      "hierarchical_qp": true,
+      "actual_bits": 54108392,
+      "actual_bpp": 0.0713093475877193,
+      "estimated_entropy_bits": 54031784.0,
+      "estimated_bpp": 0.07120838604925776,
+      "actual_to_estimated_bpp_ratio": 1.0014178321411709,
+      "actual_minus_estimated_bits": 76608.0,
+      "kbps": 1352.7098,
+      "coded_frames": 1900,
+      "map50": 0.5026239296739252,
+      "map5095": 0.4475290270391573,
+      "evaluated_images": 1900,
+      "evaluated_classes": 36,
+      "map_by_iou": {
+        "0.50": 0.5026239296739252,
+        "0.55": 0.5022349544836971,
+        "0.60": 0.5013665548506626,
+        "0.65": 0.4980224098372217,
+        "0.70": 0.4961737273369919,
+        "0.75": 0.4909675203691361,
+        "0.80": 0.47478435749109,
+        "0.85": 0.44549786577682304,
+        "0.90": 0.36043320435340614,
+        "0.95": 0.20318574621862004
+      },
+      "sequences": [
+        {
+          "name": "BasketballDrill",
+          "bitstream_file": "/kaggle/working/mask_bitstreams/class_c/R3f_e03_fp16/R3f_e03_fp16/qp_24/BasketballDrill.vcm",
+          "actual_bits": 12425952,
+          "actual_bpp": 0.06222932692307692,
+          "estimated_entropy_bits": 12405800.0,
+          "estimated_bpp": 0.06212840544871795,
+          "actual_to_estimated_bpp_ratio": 1.0016244014896258,
+          "actual_minus_estimated_bits": 20152.0,
+          "kbps": 1242.5952,
+          "fps": 50.0,
+          "width": 832,
+          "height": 480,
+          "coded_frames": 500,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 41448,
+              "estimated_entropy_bits": 41256.0,
+              "pixels": 399360,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 245584,
+              "estimated_entropy_bits": 245304.0,
+              "pixels": 2795520,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 518824,
+              "estimated_entropy_bits": 517864.0,
+              "pixels": 9584640,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 802952,
+              "estimated_entropy_bits": 801672.0,
+              "pixels": 12779520,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 10817144,
+              "estimated_entropy_bits": 10799704.0,
+              "pixels": 174120960,
+              "coded_frames": 436
+            }
+          },
+          "map50": 0.46637302677244297,
+          "map5095": 0.38345495377145605,
+          "evaluated_images": 500,
+          "evaluated_classes": 19,
+          "map_by_iou": {
+            "0.50": 0.46637302677244297,
+            "0.55": 0.4663629850647796,
+            "0.60": 0.46526928752821933,
+            "0.65": 0.4637473101677827,
+            "0.70": 0.46135514009817374,
+            "0.75": 0.4569218895011207,
+            "0.80": 0.3814580238499074,
+            "0.85": 0.3249118712415479,
+            "0.90": 0.23717295478644304,
+            "0.95": 0.11097704870414314
+          }
+        },
+        {
+          "name": "BQMall",
+          "bitstream_file": "/kaggle/working/mask_bitstreams/class_c/R3f_e03_fp16/R3f_e03_fp16/qp_24/BQMall.vcm",
+          "actual_bits": 14451016,
+          "actual_bpp": 0.060309061164529915,
+          "estimated_entropy_bits": 14426864.0,
+          "estimated_bpp": 0.06020826655982906,
+          "actual_to_estimated_bpp_ratio": 1.0016740990973505,
+          "actual_minus_estimated_bits": 24152.0,
+          "kbps": 1445.1016,
+          "fps": 60.0,
+          "width": 832,
+          "height": 480,
+          "coded_frames": 600,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 65224,
+              "estimated_entropy_bits": 65032.0,
+              "pixels": 399360,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 262568,
+              "estimated_entropy_bits": 262288.0,
+              "pixels": 2795520,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 508624,
+              "estimated_entropy_bits": 507664.0,
+              "pixels": 9584640,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 907680,
+              "estimated_entropy_bits": 906400.0,
+              "pixels": 12779520,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 12706920,
+              "estimated_entropy_bits": 12685480.0,
+              "pixels": 214056960,
+              "coded_frames": 536
+            }
+          },
+          "map50": 0.5092447729866904,
+          "map5095": 0.4579844592862317,
+          "evaluated_images": 600,
+          "evaluated_classes": 24,
+          "map_by_iou": {
+            "0.50": 0.5092447729866904,
+            "0.55": 0.5088169106651866,
+            "0.60": 0.5087627930138697,
+            "0.65": 0.5079266746134022,
+            "0.70": 0.507832019121267,
+            "0.75": 0.5064141179441463,
+            "0.80": 0.49421319472821157,
+            "0.85": 0.4370349573115426,
+            "0.90": 0.3822051167349851,
+            "0.95": 0.21739403574301505
+          }
+        },
+        {
+          "name": "PartyScene",
+          "bitstream_file": "/kaggle/working/mask_bitstreams/class_c/R3f_e03_fp16/R3f_e03_fp16/qp_24/PartyScene.vcm",
+          "actual_bits": 14140960,
+          "actual_bpp": 0.07081810897435897,
+          "estimated_entropy_bits": 14120808.0,
+          "estimated_bpp": 0.0707171875,
+          "actual_to_estimated_bpp_ratio": 1.001427113802553,
+          "actual_minus_estimated_bits": 20152.0,
+          "kbps": 1414.096,
+          "fps": 50.0,
+          "width": 832,
+          "height": 480,
+          "coded_frames": 500,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 140616,
+              "estimated_entropy_bits": 140424.0,
+              "pixels": 399360,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 390336,
+              "estimated_entropy_bits": 390056.0,
+              "pixels": 2795520,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 766224,
+              "estimated_entropy_bits": 765264.0,
+              "pixels": 9584640,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 973584,
+              "estimated_entropy_bits": 972304.0,
+              "pixels": 12779520,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 11870200,
+              "estimated_entropy_bits": 11852760.0,
+              "pixels": 174120960,
+              "coded_frames": 436
+            }
+          },
+          "map50": 0.4868951324209188,
+          "map5095": 0.448384157970884,
+          "evaluated_images": 500,
+          "evaluated_classes": 19,
+          "map_by_iou": {
+            "0.50": 0.4868951324209188,
+            "0.55": 0.4867800202168927,
+            "0.60": 0.4867501726726154,
+            "0.65": 0.4826157199463661,
+            "0.70": 0.48135477096226814,
+            "0.75": 0.47545335657347315,
+            "0.80": 0.4615986052949297,
+            "0.85": 0.4444538137895307,
+            "0.90": 0.37600119707508994,
+            "0.95": 0.3019387907567558
+          }
+        },
+        {
+          "name": "RaceHorses",
+          "bitstream_file": "/kaggle/working/mask_bitstreams/class_c/R3f_e03_fp16/R3f_e03_fp16/qp_24/RaceHorses.vcm",
+          "actual_bits": 13090464,
+          "actual_bpp": 0.10926201923076923,
+          "estimated_entropy_bits": 13078312.0,
+          "estimated_bpp": 0.10916059027777777,
+          "actual_to_estimated_bpp_ratio": 1.0009291718992481,
+          "actual_minus_estimated_bits": 12152.0,
+          "kbps": 1309.0464,
+          "fps": 30.0,
+          "width": 832,
+          "height": 480,
+          "coded_frames": 300,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 63864,
+              "estimated_entropy_bits": 63672.0,
+              "pixels": 399360,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 365624,
+              "estimated_entropy_bits": 365344.0,
+              "pixels": 2795520,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 1087976,
+              "estimated_entropy_bits": 1087016.0,
+              "pixels": 9584640,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 1427120,
+              "estimated_entropy_bits": 1425840.0,
+              "pixels": 12779520,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 10145880,
+              "estimated_entropy_bits": 10136440.0,
+              "pixels": 94248960,
+              "coded_frames": 236
+            }
+          },
+          "map50": 0.8529396173371963,
+          "map5095": 0.7573268892700518,
+          "evaluated_images": 300,
+          "evaluated_classes": 4,
+          "map_by_iou": {
+            "0.50": 0.8529396173371963,
+            "0.55": 0.8498648961263615,
+            "0.60": 0.8473236881362196,
+            "0.65": 0.8442778904654967,
+            "0.70": 0.8411628080272027,
+            "0.75": 0.8325530463187046,
+            "0.80": 0.8180179600796305,
+            "0.85": 0.7934392746903723,
+            "0.90": 0.7108756116705277,
+            "0.95": 0.18281409984880606
+          }
+        }
+      ]
+    },
+    {
+      "base_qp": 36,
+      "video_checkpoint": "/kaggle/input/notebooks/phuongthuy0909/fairhful/faithful_runs/R3f/epoch_0003.pth",
+      "hierarchical_qp": true,
+      "actual_bits": 83908400,
+      "actual_bpp": 0.11058272182860998,
+      "estimated_entropy_bits": 83831792.0,
+      "estimated_bpp": 0.11048176029014845,
+      "actual_to_estimated_bpp_ratio": 1.0009138299226623,
+      "actual_minus_estimated_bits": 76608.0,
+      "kbps": 2097.71,
+      "coded_frames": 1900,
+      "map50": 0.6120931786079129,
+      "map5095": 0.557810005813785,
+      "evaluated_images": 1900,
+      "evaluated_classes": 36,
+      "map_by_iou": {
+        "0.50": 0.6120931786079129,
+        "0.55": 0.6120251390602394,
+        "0.60": 0.6114316316753988,
+        "0.65": 0.6097072747881982,
+        "0.70": 0.6058163148994367,
+        "0.75": 0.5986868910821316,
+        "0.80": 0.5855374892516099,
+        "0.85": 0.5640783789708634,
+        "0.90": 0.4931011656133172,
+        "0.95": 0.2856225941887424
+      },
+      "sequences": [
+        {
+          "name": "BasketballDrill",
+          "bitstream_file": "/kaggle/working/mask_bitstreams/class_c/R3f_e03_fp16/R3f_e03_fp16/qp_36/BasketballDrill.vcm",
+          "actual_bits": 18872072,
+          "actual_bpp": 0.09451157852564103,
+          "estimated_entropy_bits": 18851920.0,
+          "estimated_bpp": 0.09441065705128206,
+          "actual_to_estimated_bpp_ratio": 1.001068962736952,
+          "actual_minus_estimated_bits": 20152.0,
+          "kbps": 1887.2072,
+          "fps": 50.0,
+          "width": 832,
+          "height": 480,
+          "coded_frames": 500,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 70368,
+              "estimated_entropy_bits": 70176.0,
+              "pixels": 399360,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 354928,
+              "estimated_entropy_bits": 354648.0,
+              "pixels": 2795520,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 789928,
+              "estimated_entropy_bits": 788968.0,
+              "pixels": 9584640,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 1213392,
+              "estimated_entropy_bits": 1212112.0,
+              "pixels": 12779520,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 16443456,
+              "estimated_entropy_bits": 16426016.0,
+              "pixels": 174120960,
+              "coded_frames": 436
+            }
+          },
+          "map50": 0.4782341078467678,
+          "map5095": 0.3948676652792546,
+          "evaluated_images": 500,
+          "evaluated_classes": 19,
+          "map_by_iou": {
+            "0.50": 0.4782341078467678,
+            "0.55": 0.4782229795541721,
+            "0.60": 0.47820625169848685,
+            "0.65": 0.4758995182088648,
+            "0.70": 0.4736671757984232,
+            "0.75": 0.4200510389303826,
+            "0.80": 0.3981561873770118,
+            "0.85": 0.3304936115402171,
+            "0.90": 0.25783509169723917,
+            "0.95": 0.15791069014098055
+          }
+        },
+        {
+          "name": "BQMall",
+          "bitstream_file": "/kaggle/working/mask_bitstreams/class_c/R3f_e03_fp16/R3f_e03_fp16/qp_36/BQMall.vcm",
+          "actual_bits": 22649216,
+          "actual_bpp": 0.09452297008547009,
+          "estimated_entropy_bits": 22625064.0,
+          "estimated_bpp": 0.09442217548076923,
+          "actual_to_estimated_bpp_ratio": 1.0010674886930706,
+          "actual_minus_estimated_bits": 24152.0,
+          "kbps": 2264.9216,
+          "fps": 60.0,
+          "width": 832,
+          "height": 480,
+          "coded_frames": 600,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 113024,
+              "estimated_entropy_bits": 112832.0,
+              "pixels": 399360,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 349208,
+              "estimated_entropy_bits": 348928.0,
+              "pixels": 2795520,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 805984,
+              "estimated_entropy_bits": 805024.0,
+              "pixels": 9584640,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 1391696,
+              "estimated_entropy_bits": 1390416.0,
+              "pixels": 12779520,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 19989304,
+              "estimated_entropy_bits": 19967864.0,
+              "pixels": 214056960,
+              "coded_frames": 536
+            }
+          },
+          "map50": 0.6202538870350875,
+          "map5095": 0.5743198484690503,
+          "evaluated_images": 600,
+          "evaluated_classes": 24,
+          "map_by_iou": {
+            "0.50": 0.6202538870350875,
+            "0.55": 0.620210389456862,
+            "0.60": 0.619393487087027,
+            "0.65": 0.6193715767489102,
+            "0.70": 0.6192906602314477,
+            "0.75": 0.6077424431146891,
+            "0.80": 0.5968254983949911,
+            "0.85": 0.5651169695600432,
+            "0.90": 0.5355145967927916,
+            "0.95": 0.33947897626865325
+          }
+        },
+        {
+          "name": "PartyScene",
+          "bitstream_file": "/kaggle/working/mask_bitstreams/class_c/R3f_e03_fp16/R3f_e03_fp16/qp_36/PartyScene.vcm",
+          "actual_bits": 21249528,
+          "actual_bpp": 0.10641790865384615,
+          "estimated_entropy_bits": 21229376.0,
+          "estimated_bpp": 0.10631698717948718,
+          "actual_to_estimated_bpp_ratio": 1.0009492506986546,
+          "actual_minus_estimated_bits": 20152.0,
+          "kbps": 2124.9528,
+          "fps": 50.0,
+          "width": 832,
+          "height": 480,
+          "coded_frames": 500,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 261824,
+              "estimated_entropy_bits": 261632.0,
+              "pixels": 399360,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 496560,
+              "estimated_entropy_bits": 496280.0,
+              "pixels": 2795520,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 1193608,
+              "estimated_entropy_bits": 1192648.0,
+              "pixels": 9584640,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 1463704,
+              "estimated_entropy_bits": 1462424.0,
+              "pixels": 12779520,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 17833832,
+              "estimated_entropy_bits": 17816392.0,
+              "pixels": 174120960,
+              "coded_frames": 436
+            }
+          },
+          "map50": 0.5680464737041583,
+          "map5095": 0.5319297555754648,
+          "evaluated_images": 500,
+          "evaluated_classes": 19,
+          "map_by_iou": {
+            "0.50": 0.5680464737041583,
+            "0.55": 0.5679745980624141,
+            "0.60": 0.5674099899839014,
+            "0.65": 0.5660992432115345,
+            "0.70": 0.560961662701237,
+            "0.75": 0.5590603159237336,
+            "0.80": 0.552823271824029,
+            "0.85": 0.5383202372606626,
+            "0.90": 0.46970286448734827,
+            "0.95": 0.36889889859562947
+          }
+        },
+        {
+          "name": "RaceHorses",
+          "bitstream_file": "/kaggle/working/mask_bitstreams/class_c/R3f_e03_fp16/R3f_e03_fp16/qp_36/RaceHorses.vcm",
+          "actual_bits": 21137584,
+          "actual_bpp": 0.17642881944444444,
+          "estimated_entropy_bits": 21125432.0,
+          "estimated_bpp": 0.176327390491453,
+          "actual_to_estimated_bpp_ratio": 1.0005752308402498,
+          "actual_minus_estimated_bits": 12152.0,
+          "kbps": 2113.7584,
+          "fps": 30.0,
+          "width": 832,
+          "height": 480,
+          "coded_frames": 300,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 136440,
+              "estimated_entropy_bits": 136248.0,
+              "pixels": 399360,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 553272,
+              "estimated_entropy_bits": 552992.0,
+              "pixels": 2795520,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 1742560,
+              "estimated_entropy_bits": 1741600.0,
+              "pixels": 9584640,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 2311880,
+              "estimated_entropy_bits": 2310600.0,
+              "pixels": 12779520,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 16393432,
+              "estimated_entropy_bits": 16383992.0,
+              "pixels": 94248960,
+              "coded_frames": 236
+            }
+          },
+          "map50": 0.8555769645564234,
+          "map5095": 0.7652659932779834,
+          "evaluated_images": 300,
+          "evaluated_classes": 4,
+          "map_by_iou": {
+            "0.50": 0.8555769645564234,
+            "0.55": 0.8504547897839707,
+            "0.60": 0.8500242918495708,
+            "0.65": 0.8468925257732037,
+            "0.70": 0.8437128401793623,
+            "0.75": 0.8382820843150505,
+            "0.80": 0.8240387461895705,
+            "0.85": 0.7328368179994761,
+            "0.90": 0.6868013451263055,
+            "0.95": 0.32403952700690014
+          }
+        }
+      ]
+    },
+    {
+      "base_qp": 48,
+      "video_checkpoint": "/kaggle/input/notebooks/phuongthuy0909/fairhful/faithful_runs/R3f/epoch_0003.pth",
+      "hierarchical_qp": true,
+      "actual_bits": 129277520,
+      "actual_bpp": 0.17037459935897437,
+      "estimated_entropy_bits": 129200912.0,
+      "estimated_bpp": 0.17027363782051283,
+      "actual_to_estimated_bpp_ratio": 1.000592936991033,
+      "actual_minus_estimated_bits": 76608.0,
+      "kbps": 3231.938,
+      "coded_frames": 1900,
+      "map50": 0.6695564068096191,
+      "map5095": 0.622481610563727,
+      "evaluated_images": 1900,
+      "evaluated_classes": 36,
+      "map_by_iou": {
+        "0.50": 0.6695564068096191,
+        "0.55": 0.6692613703860094,
+        "0.60": 0.6692154728601418,
+        "0.65": 0.6673919014156566,
+        "0.70": 0.6627569326670439,
+        "0.75": 0.6596016055100902,
+        "0.80": 0.6398719244889155,
+        "0.85": 0.6156434250449372,
+        "0.90": 0.5584302747138181,
+        "0.95": 0.413086791741037
+      },
+      "sequences": [
+        {
+          "name": "BasketballDrill",
+          "bitstream_file": "/kaggle/working/mask_bitstreams/class_c/R3f_e03_fp16/R3f_e03_fp16/qp_48/BasketballDrill.vcm",
+          "actual_bits": 28264760,
+          "actual_bpp": 0.14155028044871795,
+          "estimated_entropy_bits": 28244608.0,
+          "estimated_bpp": 0.14144935897435898,
+          "actual_to_estimated_bpp_ratio": 1.0007134813129643,
+          "actual_minus_estimated_bits": 20152.0,
+          "kbps": 2826.476,
+          "fps": 50.0,
+          "width": 832,
+          "height": 480,
+          "coded_frames": 500,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 124400,
+              "estimated_entropy_bits": 124208.0,
+              "pixels": 399360,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 494016,
+              "estimated_entropy_bits": 493736.0,
+              "pixels": 2795520,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 1200944,
+              "estimated_entropy_bits": 1199984.0,
+              "pixels": 9584640,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 1825920,
+              "estimated_entropy_bits": 1824640.0,
+              "pixels": 12779520,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 24619480,
+              "estimated_entropy_bits": 24602040.0,
+              "pixels": 174120960,
+              "coded_frames": 436
+            }
+          },
+          "map50": 0.6675084094095788,
+          "map5095": 0.5889222939034797,
+          "evaluated_images": 500,
+          "evaluated_classes": 19,
+          "map_by_iou": {
+            "0.50": 0.6675084094095788,
+            "0.55": 0.6674980896362782,
+            "0.60": 0.6674938183291456,
+            "0.65": 0.6641129759103022,
+            "0.70": 0.6559566093990084,
+            "0.75": 0.6370862233758551,
+            "0.80": 0.5639256716204697,
+            "0.85": 0.522004259878538,
+            "0.90": 0.47262200050440883,
+            "0.95": 0.37101488097121144
+          }
+        },
+        {
+          "name": "BQMall",
+          "bitstream_file": "/kaggle/working/mask_bitstreams/class_c/R3f_e03_fp16/R3f_e03_fp16/qp_48/BQMall.vcm",
+          "actual_bits": 35979744,
+          "actual_bpp": 0.15015584935897436,
+          "estimated_entropy_bits": 35955592.0,
+          "estimated_bpp": 0.1500550547542735,
+          "actual_to_estimated_bpp_ratio": 1.0006717174897302,
+          "actual_minus_estimated_bits": 24152.0,
+          "kbps": 3597.9744,
+          "fps": 60.0,
+          "width": 832,
+          "height": 480,
+          "coded_frames": 600,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 188104,
+              "estimated_entropy_bits": 187912.0,
+              "pixels": 399360,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 478776,
+              "estimated_entropy_bits": 478496.0,
+              "pixels": 2795520,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 1273448,
+              "estimated_entropy_bits": 1272488.0,
+              "pixels": 9584640,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 2165960,
+              "estimated_entropy_bits": 2164680.0,
+              "pixels": 12779520,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 31873456,
+              "estimated_entropy_bits": 31852016.0,
+              "pixels": 214056960,
+              "coded_frames": 536
+            }
+          },
+          "map50": 0.6199777311968139,
+          "map5095": 0.5757434518706316,
+          "evaluated_images": 600,
+          "evaluated_classes": 24,
+          "map_by_iou": {
+            "0.50": 0.6199777311968139,
+            "0.55": 0.6199720702331252,
+            "0.60": 0.6199283415034981,
+            "0.65": 0.6198789722423111,
+            "0.70": 0.6194444863243916,
+            "0.75": 0.6184970206794901,
+            "0.80": 0.571284604583936,
+            "0.85": 0.5443595378970257,
+            "0.90": 0.5157562297907692,
+            "0.95": 0.4083355242549553
+          }
+        },
+        {
+          "name": "PartyScene",
+          "bitstream_file": "/kaggle/working/mask_bitstreams/class_c/R3f_e03_fp16/R3f_e03_fp16/qp_48/PartyScene.vcm",
+          "actual_bits": 31856224,
+          "actual_bpp": 0.1595363782051282,
+          "estimated_entropy_bits": 31836072.0,
+          "estimated_bpp": 0.15943545673076923,
+          "actual_to_estimated_bpp_ratio": 1.0006329926631652,
+          "actual_minus_estimated_bits": 20152.0,
+          "kbps": 3185.6224,
+          "fps": 50.0,
+          "width": 832,
+          "height": 480,
+          "coded_frames": 500,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 434632,
+              "estimated_entropy_bits": 434440.0,
+              "pixels": 399360,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 635456,
+              "estimated_entropy_bits": 635176.0,
+              "pixels": 2795520,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 1824672,
+              "estimated_entropy_bits": 1823712.0,
+              "pixels": 9584640,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 2209392,
+              "estimated_entropy_bits": 2208112.0,
+              "pixels": 12779520,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 26752072,
+              "estimated_entropy_bits": 26734632.0,
+              "pixels": 174120960,
+              "coded_frames": 436
+            }
+          },
+          "map50": 0.699836972349577,
+          "map5095": 0.6691871017140929,
+          "evaluated_images": 500,
+          "evaluated_classes": 19,
+          "map_by_iou": {
+            "0.50": 0.699836972349577,
+            "0.55": 0.6997697583470267,
+            "0.60": 0.6992799199829389,
+            "0.65": 0.6987319492730141,
+            "0.70": 0.6987319492730141,
+            "0.75": 0.6944073721576001,
+            "0.80": 0.6888376785491875,
+            "0.85": 0.6741687982847169,
+            "0.90": 0.6166021522129591,
+            "0.95": 0.5215044667108959
+          }
+        },
+        {
+          "name": "RaceHorses",
+          "bitstream_file": "/kaggle/working/mask_bitstreams/class_c/R3f_e03_fp16/R3f_e03_fp16/qp_48/RaceHorses.vcm",
+          "actual_bits": 33176792,
+          "actual_bpp": 0.2769163327991453,
+          "estimated_entropy_bits": 33164640.0,
+          "estimated_bpp": 0.27681490384615387,
+          "actual_to_estimated_bpp_ratio": 1.0003664143497413,
+          "actual_minus_estimated_bits": 12152.0,
+          "kbps": 3317.6792,
+          "fps": 30.0,
+          "width": 832,
+          "height": 480,
+          "coded_frames": 300,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 235328,
+              "estimated_entropy_bits": 235136.0,
+              "pixels": 399360,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 831072,
+              "estimated_entropy_bits": 830792.0,
+              "pixels": 2795520,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 2724600,
+              "estimated_entropy_bits": 2723640.0,
+              "pixels": 9584640,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 3645992,
+              "estimated_entropy_bits": 3644712.0,
+              "pixels": 12779520,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 25739800,
+              "estimated_entropy_bits": 25730360.0,
+              "pixels": 94248960,
+              "coded_frames": 236
+            }
+          },
+          "map50": 0.9077790922633449,
+          "map5095": 0.8356675079346962,
+          "evaluated_images": 300,
+          "evaluated_classes": 4,
+          "map_by_iou": {
+            "0.50": 0.9077790922633449,
+            "0.55": 0.9076729686488441,
+            "0.60": 0.9074434549713934,
+            "0.65": 0.9048007290290891,
+            "0.70": 0.9017009244523955,
+            "0.75": 0.8990281054705553,
+            "0.80": 0.8211544069763362,
+            "0.85": 0.806822703583182,
+            "0.90": 0.7652422719799263,
+            "0.95": 0.5350304219718954
+          }
+        }
+      ]
+    },
+    {
+      "base_qp": 63,
+      "video_checkpoint": "/kaggle/input/notebooks/phuongthuy0909/fairhful/faithful_runs/R3f/epoch_0003.pth",
+      "hierarchical_qp": true,
+      "actual_bits": 214447224,
+      "actual_bpp": 0.28261959134615383,
+      "estimated_entropy_bits": 214370616.0,
+      "estimated_bpp": 0.2825186298076923,
+      "actual_to_estimated_bpp_ratio": 1.0003573624101543,
+      "actual_minus_estimated_bits": 76608.0,
+      "kbps": 5361.1806,
+      "coded_frames": 1900,
+      "map50": 0.7489620384485488,
+      "map5095": 0.7078505089954465,
+      "evaluated_images": 1900,
+      "evaluated_classes": 36,
+      "map_by_iou": {
+        "0.50": 0.7489620384485488,
+        "0.55": 0.7472294556720022,
+        "0.60": 0.7472211772038323,
+        "0.65": 0.7454365053154866,
+        "0.70": 0.7452789535786233,
+        "0.75": 0.7431229060864192,
+        "0.80": 0.7342212676183117,
+        "0.85": 0.7142903877833644,
+        "0.90": 0.6583689810681768,
+        "0.95": 0.49437341717970074
+      },
+      "sequences": [
+        {
+          "name": "BasketballDrill",
+          "bitstream_file": "/kaggle/working/mask_bitstreams/class_c/R3f_e03_fp16/R3f_e03_fp16/qp_63/BasketballDrill.vcm",
+          "actual_bits": 45638064,
+          "actual_bpp": 0.2285560096153846,
+          "estimated_entropy_bits": 45617912.0,
+          "estimated_bpp": 0.22845508814102564,
+          "actual_to_estimated_bpp_ratio": 1.0004417562995869,
+          "actual_minus_estimated_bits": 20152.0,
+          "kbps": 4563.8064,
+          "fps": 50.0,
+          "width": 832,
+          "height": 480,
+          "coded_frames": 500,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 256216,
+              "estimated_entropy_bits": 256024.0,
+              "pixels": 399360,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 699688,
+              "estimated_entropy_bits": 699408.0,
+              "pixels": 2795520,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 1994608,
+              "estimated_entropy_bits": 1993648.0,
+              "pixels": 9584640,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 2953544,
+              "estimated_entropy_bits": 2952264.0,
+              "pixels": 12779520,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 39734008,
+              "estimated_entropy_bits": 39716568.0,
+              "pixels": 174120960,
+              "coded_frames": 436
+            }
+          },
+          "map50": 0.7558818105015577,
+          "map5095": 0.6905232446612594,
+          "evaluated_images": 500,
+          "evaluated_classes": 19,
+          "map_by_iou": {
+            "0.50": 0.7558818105015577,
+            "0.55": 0.752631532552493,
+            "0.60": 0.7526292359201076,
+            "0.65": 0.7509144520661888,
+            "0.70": 0.7507668781759237,
+            "0.75": 0.7467682642330488,
+            "0.80": 0.7126477280587251,
+            "0.85": 0.6242572482103833,
+            "0.90": 0.565741361968659,
+            "0.95": 0.492993934925508
+          }
+        },
+        {
+          "name": "BQMall",
+          "bitstream_file": "/kaggle/working/mask_bitstreams/class_c/R3f_e03_fp16/R3f_e03_fp16/qp_63/BQMall.vcm",
+          "actual_bits": 61474624,
+          "actual_bpp": 0.25655475427350427,
+          "estimated_entropy_bits": 61450472.0,
+          "estimated_bpp": 0.2564539596688034,
+          "actual_to_estimated_bpp_ratio": 1.0003930319689,
+          "actual_minus_estimated_bits": 24152.0,
+          "kbps": 6147.4624,
+          "fps": 60.0,
+          "width": 832,
+          "height": 480,
+          "coded_frames": 600,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 333616,
+              "estimated_entropy_bits": 333424.0,
+              "pixels": 399360,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 728560,
+              "estimated_entropy_bits": 728280.0,
+              "pixels": 2795520,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 2218376,
+              "estimated_entropy_bits": 2217416.0,
+              "pixels": 9584640,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 3708720,
+              "estimated_entropy_bits": 3707440.0,
+              "pixels": 12779520,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 54485352,
+              "estimated_entropy_bits": 54463912.0,
+              "pixels": 214056960,
+              "coded_frames": 536
+            }
+          },
+          "map50": 0.6934445756084399,
+          "map5095": 0.6600706623192105,
+          "evaluated_images": 600,
+          "evaluated_classes": 24,
+          "map_by_iou": {
+            "0.50": 0.6934445756084399,
+            "0.55": 0.693021117189736,
+            "0.60": 0.6930047940930996,
+            "0.65": 0.6925427651004424,
+            "0.70": 0.6925181954821445,
+            "0.75": 0.6920050506806666,
+            "0.80": 0.6858532138268473,
+            "0.85": 0.6564691794404963,
+            "0.90": 0.6038743646170576,
+            "0.95": 0.4979733671531734
+          }
+        },
+        {
+          "name": "PartyScene",
+          "bitstream_file": "/kaggle/working/mask_bitstreams/class_c/R3f_e03_fp16/R3f_e03_fp16/qp_63/PartyScene.vcm",
+          "actual_bits": 52693392,
+          "actual_bpp": 0.2638891826923077,
+          "estimated_entropy_bits": 52673240.0,
+          "estimated_bpp": 0.26378826121794874,
+          "actual_to_estimated_bpp_ratio": 1.00038258516089,
+          "actual_minus_estimated_bits": 20152.0,
+          "kbps": 5269.3392,
+          "fps": 50.0,
+          "width": 832,
+          "height": 480,
+          "coded_frames": 500,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 720880,
+              "estimated_entropy_bits": 720688.0,
+              "pixels": 399360,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 894608,
+              "estimated_entropy_bits": 894328.0,
+              "pixels": 2795520,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 3034352,
+              "estimated_entropy_bits": 3033392.0,
+              "pixels": 9584640,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 3668840,
+              "estimated_entropy_bits": 3667560.0,
+              "pixels": 12779520,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 44374712,
+              "estimated_entropy_bits": 44357272.0,
+              "pixels": 174120960,
+              "coded_frames": 436
+            }
+          },
+          "map50": 0.7234877909651936,
+          "map5095": 0.6954584208907835,
+          "evaluated_images": 500,
+          "evaluated_classes": 19,
+          "map_by_iou": {
+            "0.50": 0.7234877909651936,
+            "0.55": 0.7234877909651936,
+            "0.60": 0.7234877909651936,
+            "0.65": 0.722869802423509,
+            "0.70": 0.7223776775232162,
+            "0.75": 0.721827762119892,
+            "0.80": 0.7211033613493422,
+            "0.85": 0.701551347408188,
+            "0.90": 0.6717253588638507,
+            "0.95": 0.5226655263242558
+          }
+        },
+        {
+          "name": "RaceHorses",
+          "bitstream_file": "/kaggle/working/mask_bitstreams/class_c/R3f_e03_fp16/R3f_e03_fp16/qp_63/RaceHorses.vcm",
+          "actual_bits": 54641144,
+          "actual_bpp": 0.4560725827991453,
+          "estimated_entropy_bits": 54628992.0,
+          "estimated_bpp": 0.45597115384615383,
+          "actual_to_estimated_bpp_ratio": 1.00022244598619,
+          "actual_minus_estimated_bits": 12152.0,
+          "kbps": 5464.1144,
+          "fps": 30.0,
+          "width": 832,
+          "height": 480,
+          "coded_frames": 300,
+          "temporal_bins": {
+            "frame_0": {
+              "actual_bits": 398992,
+              "estimated_entropy_bits": 398800.0,
+              "pixels": 399360,
+              "coded_frames": 1
+            },
+            "frames_1_7": {
+              "actual_bits": 1332440,
+              "estimated_entropy_bits": 1332160.0,
+              "pixels": 2795520,
+              "coded_frames": 7
+            },
+            "frames_8_31": {
+              "actual_bits": 4505936,
+              "estimated_entropy_bits": 4504976.0,
+              "pixels": 9584640,
+              "coded_frames": 24
+            },
+            "frames_32_63": {
+              "actual_bits": 6050112,
+              "estimated_entropy_bits": 6048832.0,
+              "pixels": 12779520,
+              "coded_frames": 32
+            },
+            "frames_64_plus": {
+              "actual_bits": 42353664,
+              "estimated_entropy_bits": 42344224.0,
+              "pixels": 94248960,
+              "coded_frames": 236
+            }
+          },
+          "map50": 0.900479523324844,
+          "map5095": 0.8366437449808917,
+          "evaluated_images": 300,
+          "evaluated_classes": 4,
+          "map_by_iou": {
+            "0.50": 0.900479523324844,
+            "0.55": 0.9003733624889557,
+            "0.60": 0.9003198875484837,
+            "0.65": 0.8977440337943433,
+            "0.70": 0.8944368647475476,
+            "0.75": 0.8943351267630492,
+            "0.80": 0.7971921276458587,
+            "0.85": 0.7888010859323198,
+            "0.90": 0.7580926039852178,
+            "0.95": 0.6346628335782962
+          }
+        }
+      ]
+    }
+  ]
+}

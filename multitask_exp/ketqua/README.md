@@ -59,3 +59,15 @@ Cần tải thêm từ output của phiên đó:
   `sha256:415914dc…`, gồm cả tệp của hai cặp cũ (seed 1234, 4321) và mốc `paper_fp16`, `HEVC_x265`.
 - Kết quả (tính lại trên máy, trùng `summary_seeds.json`): hiệu cặp −12,55 / −1,20 / −11,28 / +11,78 / +2,64;
   trung bình −2,12, độ lệch chuẩn 10,12, KTC 95 % [−14,68; +10,44] → **RQ2 không xác lập**.
+
+## `bosung/` và `sfu_final/` — phép đo bổ sung (đủ)
+
+- `bosung/`: `train_kaggle/kaggle_multitask_bosung.ipynb`, commit `83a01fe`, 8,6 giờ, không lỗi. Gồm **mọi** tệp kết quả SFU
+  (`eval_box/`, `eval_mask/` cho Class C và D, cũ và mới), `summary_bosung.json`, hình vẽ lại.
+- `sfu_final/` (cũng có trong `bosung/tu_phien_final/`): `summary_final.json` và `rd_map50.png` / `rd_map5095.png` của phiên final
+  (commit `503ddf8`) — hình có đủ mốc HEVC ở cả bốn panel, dùng làm Hình 4.1.
+- RQ1 (tiêu chí đặt trước: KTC 95 % của BD box D R4f so với bài nằm trong ±5 %): +1,18 / +7,95 / +8,46 / −0,23 / +8,30;
+  trung bình +5,13, KTC [−0,19; +10,45] → **không đạt tiêu chí**; so với HEVC R4f trung bình −71,9 % so với bài −73,2 %.
+- RQ2 trên Class C (4 cặp): +4,05 / −2,37 / −6,69 / −15,36; trung bình −5,09, KTC [−18,05; +7,86].
+- RQ3: Class D −51,7 %, Class C −49,7 %.
+- Thiếu: mốc HEVC trục box trong lần này (không attach output "eval box cũ"); R3f seed 4321 trên trục box (không tìm thấy checkpoint).
